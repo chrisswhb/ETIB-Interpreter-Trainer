@@ -1,5 +1,5 @@
 """
-Evaluate the local RAG-lite retrieval baseline.
+Evaluate local retrieval baselines.
 
 This script uses only local document_grounding helpers. It does not call Flask,
 LLM providers, embedding models, vector stores, or the network.
@@ -26,15 +26,49 @@ if str(BACKEND_ROOT) not in sys.path:
 from utils.document_grounding import (  # noqa: E402
     chunk_text,
     normalize_text,
+    select_relevant_chunks_bm25_with_metadata,
     select_relevant_chunks_with_metadata,
     _tokenize,
 )
 
 
 METHOD_NAME = 'rag_lite_keyword_metadata'
+BM25_METHOD_NAME = 'bm25_keyword'
 MAX_EXCERPTS = 3
 CHUNK_SIZE = 520
 CHUNK_OVERLAP = 0
+METHODS = {
+    METHOD_NAME: {
+        'selector': select_relevant_chunks_with_metadata,
+        'output_path': REPORT_DIR / 'rag_lite_baseline.json',
+        'notes': [
+            'Keyword and metadata overlap baseline.',
+            'No LLM calls, embeddings, vector database, or network calls are used.',
+            'Placeholder semantic and cross-language cases are skipped for now.',
+        ],
+        'known_limitations': [
+            'No stemming or synonym matching.',
+            'No semantic paraphrase retrieval.',
+            'No cross-language retrieval.',
+            'Character-window chunking can split phrases across chunk boundaries.',
+        ],
+    },
+    BM25_METHOD_NAME: {
+        'selector': select_relevant_chunks_bm25_with_metadata,
+        'output_path': REPORT_DIR / 'bm25_baseline.json',
+        'notes': [
+            'Lightweight BM25 keyword baseline using the shared normalized tokenizer.',
+            'No LLM calls, embeddings, vector database, or network calls are used.',
+            'Placeholder semantic and cross-language cases are skipped for now.',
+        ],
+        'known_limitations': [
+            'No stemming or synonym matching.',
+            'No semantic paraphrase retrieval.',
+            'No cross-language retrieval.',
+            'Small fixture sets can make BM25 metrics look stronger than production behavior.',
+        ],
+    },
+}
 
 
 def load_cases(cases_path: Path = CASES_PATH) -> list[dict]:
@@ -80,7 +114,7 @@ def first_relevant_rank(selected_chunks: list[dict], case: dict) -> int | None:
     return None
 
 
-def evaluate_case(case: dict) -> dict:
+def evaluate_case(case: dict, selector) -> dict:
     if case.get('skip'):
         return {
             'id': case['id'],
@@ -94,7 +128,7 @@ def evaluate_case(case: dict) -> dict:
 
     started = time.perf_counter()
     records = load_chunk_records(case)
-    selected_chunks = select_relevant_chunks_with_metadata(
+    selected_chunks = selector(
         records,
         params,
         max_excerpts=MAX_EXCERPTS,
@@ -167,30 +201,31 @@ def summarize(results: list[dict]) -> dict:
     }
 
 
-def run_evaluation(write_output: bool = True, output_path: Path = DEFAULT_OUTPUT_PATH) -> dict:
+def run_evaluation(
+    method_name: str = METHOD_NAME,
+    write_output: bool = True,
+    output_path: Path | None = None,
+) -> dict:
+    if method_name not in METHODS:
+        raise ValueError(f'Unknown retrieval method: {method_name}')
+
+    method_config = METHODS[method_name]
+    selector = method_config['selector']
     cases = load_cases()
-    per_case_results = [evaluate_case(case) for case in cases]
+    per_case_results = [evaluate_case(case, selector) for case in cases]
     metrics = summarize(per_case_results)
 
     report = {
-        'method_name': METHOD_NAME,
+        'method_name': method_name,
         'timestamp': datetime.now(timezone.utc).isoformat(),
         'metrics': metrics,
         'per_case_results': per_case_results,
-        'notes': [
-            'Keyword and metadata overlap baseline.',
-            'No LLM calls, embeddings, vector database, or network calls are used.',
-            'Placeholder semantic and cross-language cases are skipped for now.',
-        ],
-        'known_limitations': [
-            'No stemming or synonym matching.',
-            'No semantic paraphrase retrieval.',
-            'No cross-language retrieval.',
-            'Character-window chunking can split phrases across chunk boundaries.',
-        ],
+        'notes': method_config['notes'],
+        'known_limitations': method_config['known_limitations'],
     }
 
     if write_output:
+        output_path = output_path or method_config['output_path']
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(
             json.dumps(report, ensure_ascii=False, indent=2),
@@ -200,8 +235,16 @@ def run_evaluation(write_output: bool = True, output_path: Path = DEFAULT_OUTPUT
     return report
 
 
+def run_all_evaluations(write_output: bool = True) -> list[dict]:
+    return [
+        run_evaluation(method_name=method_name, write_output=write_output)
+        for method_name in METHODS
+    ]
+
+
 def print_summary(report: dict) -> None:
     metrics = report['metrics']
+    output_path = METHODS[report['method_name']]['output_path']
     print(f"Method: {report['method_name']}")
     print(f"Total cases: {metrics['total_cases']}")
     print(f"Evaluated cases: {metrics['evaluated_cases']}")
@@ -213,12 +256,15 @@ def print_summary(report: dict) -> None:
     print(f"MRR: {metrics['mrr']:.2f}")
     print(f"Exact term hit rate: {metrics['exact_term_hit_rate']:.2f}")
     print(f"Average latency: {metrics['average_latency_ms']:.2f} ms")
-    print(f"Report: {DEFAULT_OUTPUT_PATH.relative_to(REPO_ROOT)}")
+    print(f"Report: {output_path.relative_to(REPO_ROOT)}")
 
 
 def main() -> int:
-    report = run_evaluation(write_output=True)
-    print_summary(report)
+    reports = run_all_evaluations(write_output=True)
+    for index, report in enumerate(reports):
+        if index:
+            print()
+        print_summary(report)
     return 0
 
 

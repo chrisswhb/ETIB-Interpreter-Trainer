@@ -12,11 +12,14 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from utils.document_grounding import (  # noqa: E402
+    BM25_RETRIEVAL_METHOD,
     RETRIEVAL_METHOD,
     chunk_text,
     normalize_text,
     score_chunks,
+    select_relevant_chunks_bm25_with_metadata,
     select_relevant_chunks_with_metadata,
+    _tokenize,
 )
 
 
@@ -44,6 +47,15 @@ def records_from_fixture(filename, source_order=0):
 
 def select(records, params, max_excerpts=1):
     return select_relevant_chunks_with_metadata(
+        records,
+        params,
+        max_excerpts=max_excerpts,
+        max_total_characters=5000,
+    )
+
+
+def select_bm25(records, params, max_excerpts=1):
+    return select_relevant_chunks_bm25_with_metadata(
         records,
         params,
         max_excerpts=max_excerpts,
@@ -189,6 +201,69 @@ def test_numbers_percentages_and_decimals_are_preserved():
     records = records_from_fixture('numbers_names_en.txt')
 
     selected = select(records, {
+        'query': '42 2026 18% 1.8',
+        'number_density': 'high',
+        'language': 'en',
+    })
+
+    text = selected[0]['text']
+    assert '42 percent' in text
+    assert '2026' in text
+    assert '18%' in text
+    assert '1.8 billion' in text
+
+
+def test_bm25_selected_chunks_include_required_metadata():
+    records = records_from_fixture('climate_en.txt')
+
+    selected = select_bm25(records, {'query': 'climate finance'}, max_excerpts=1)
+    chunk = selected[0]
+
+    assert set(chunk) == {
+        'text',
+        'source_filename',
+        'source_type',
+        'chunk_index',
+        'score',
+        'retrieval_method',
+    }
+    assert chunk['source_filename'] == 'climate_en.txt'
+    assert chunk['source_type'] == '.txt'
+    assert isinstance(chunk['chunk_index'], int)
+    assert isinstance(chunk['score'], (int, float))
+    assert chunk['retrieval_method'] == BM25_RETRIEVAL_METHOD
+
+
+def test_bm25_french_accent_insensitive_matching():
+    records = records_from_fixture('health_fr.txt')
+
+    selected = select_bm25(records, {
+        'query': 'sante prevention financement',
+        'language': 'fr',
+    })
+
+    text = selected[0]['text'].lower()
+    tokens = _tokenize(text)
+    assert _tokenize('sante').issubset(tokens)
+    assert _tokenize('prevention').issubset(tokens)
+    assert 'financement' in text
+
+
+def test_bm25_arabic_alef_and_diacritic_normalization():
+    records = records_from_fixture('diplomacy_ar.txt')
+
+    selected = select_bm25(records, {
+        'query': 'Ø§Ù„Ø§Ù…Ù† Ø§Ù„ØºØ°Ø§Ø¦ÙŠ',
+        'language': 'ar',
+    })
+
+    assert _tokenize('الامن الغذائي').issubset(_tokenize(selected[0]['text']))
+
+
+def test_bm25_retrieves_number_percentage_and_decimal_content():
+    records = records_from_fixture('numbers_names_en.txt')
+
+    selected = select_bm25(records, {
         'query': '42 2026 18% 1.8',
         'number_density': 'high',
         'language': 'en',

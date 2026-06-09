@@ -9,14 +9,19 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from scripts.evaluate_retrieval import run_evaluation  # noqa: E402
+from scripts.evaluate_retrieval import (  # noqa: E402
+    BM25_METHOD_NAME,
+    METHOD_NAME,
+    run_all_evaluations,
+    run_evaluation,
+)
 
 
 def test_retrieval_evaluator_metrics_shape():
     report = run_evaluation(write_output=False)
     metrics = report['metrics']
 
-    assert report['method_name'] == 'rag_lite_keyword_metadata'
+    assert report['method_name'] == METHOD_NAME
     assert metrics['total_cases'] > 0
     assert metrics['evaluated_cases'] > 0
     assert metrics['recall_at_1'] >= 0.5
@@ -24,3 +29,17 @@ def test_retrieval_evaluator_metrics_shape():
     assert metrics['mrr'] >= 0
     assert 'per_case_results' in report
     assert report['per_case_results']
+
+
+def test_retrieval_evaluator_runs_all_methods():
+    reports = run_all_evaluations(write_output=False)
+    by_method = {report['method_name']: report for report in reports}
+
+    assert set(by_method) == {METHOD_NAME, BM25_METHOD_NAME}
+    for report in by_method.values():
+        metrics = report['metrics']
+        assert metrics['total_cases'] > 0
+        assert metrics['evaluated_cases'] > 0
+        assert metrics['recall_at_3'] >= metrics['recall_at_1']
+        assert 'per_case_results' in report
+        assert report['per_case_results']
