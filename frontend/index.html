@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ETIB — Arabic I'rab Tester</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Arabic:wght@400;600&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d0f14; --surface:#13161e; --border:#1f2433;
+  --green:#4ade80; --yellow:#facc15; --red:#f87171; --pink:#f9a8d4;
+  --blue:#93c5fd; --muted:#64748b; --text:#e2e8f0;
+  --arabic:'IBM Plex Sans Arabic',serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh}
+
+header{padding:1.2rem 2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:.9rem;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--green)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:background .3s}
+.dot.ok{background:var(--green);box-shadow:0 0 10px var(--green)}
+
+.layout{display:grid;grid-template-columns:270px 1fr;height:calc(100vh - 57px);overflow:hidden}
+
+/* Sidebar */
+aside{border-right:1px solid var(--border);overflow-y:auto;padding:1rem}
+.side-label{font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);padding:.5rem;margin-bottom:.5rem}
+.ex-btn{width:100%;text-align:right;direction:rtl;padding:.75rem .9rem;border-radius:8px;cursor:pointer;border:1px solid transparent;background:none;color:var(--text);margin-bottom:.3rem;transition:all .15s;font-family:'Syne',sans-serif}
+.ex-btn:hover{background:var(--surface);border-color:var(--border)}
+.ex-btn.active{background:#0d2010;border-color:var(--green)}
+.ex-btn-title{font-size:.82rem;font-weight:700;display:block}
+.ex-btn-desc{font-size:.68rem;color:var(--muted);display:block;margin-top:.1rem}
+
+/* Main */
+main{overflow-y:auto;padding:2rem}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem 2rem;margin-bottom:1.25rem}
+.card-label{font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:.75rem}
+
+/* Reference display */
+.ref-text{font-family:var(--arabic);font-size:1.6rem;line-height:2.4;direction:rtl;text-align:right;color:#c7d2fe;background:#0a0c12;border:1px solid var(--border);border-radius:8px;padding:1rem 1.5rem;margin-bottom:.75rem}
+.ref-arabizi{font-family:'IBM Plex Mono',monospace;font-size:.82rem;color:var(--muted);text-align:center;letter-spacing:.05em;margin-bottom:.75rem}
+.tip{font-size:.8rem;color:var(--yellow);background:#1a150a;border:1px solid #3a2e0a;border-radius:6px;padding:.5rem 1rem;font-family:var(--arabic);direction:rtl;text-align:right}
+
+/* Recorder */
+.recorder{display:flex;align-items:center;gap:1.25rem;margin-bottom:.75rem}
+.rec-btn{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;font-size:1.3rem;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.rec-btn.idle{background:var(--surface);border:2px solid var(--border);color:var(--muted)}
+.rec-btn.idle:hover{border-color:var(--green);color:var(--green)}
+.rec-btn.rec{background:var(--red);color:#fff;animation:pulse 1s infinite}
+.rec-btn.proc{background:var(--yellow);color:#000;cursor:not-allowed}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.rec-info .status{font-size:.72rem;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-bottom:.15rem}
+.rec-info .timer{font-size:1.4rem;font-weight:800;font-family:'IBM Plex Mono',monospace}
+.rec-info .timer.rec{color:var(--red)}
+canvas{width:100%;height:40px;display:block;border-radius:4px;background:#0a0c12}
+
+/* Result — "You said" transcript */
+.transcript{font-family:var(--arabic);font-size:1rem;direction:rtl;text-align:right;color:#94a3b8;line-height:2;padding:.75rem 0}
+
+/* Word comparison table */
+.compare-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.compare-table th{padding:.5rem .75rem;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);text-align:left}
+.compare-table td{padding:.6rem .75rem;border-bottom:1px solid #1a1f2e;font-family:'IBM Plex Mono',monospace}
+.compare-table td.arabic{font-family:var(--arabic);font-size:1rem;direction:rtl;text-align:right}
+.compare-table tr:hover td{background:var(--surface)}
+
+/* Status colors */
+.status-ok       {color:var(--green)}
+.status-wrong_ending{color:var(--red);font-weight:700}
+.status-wrong_word  {color:var(--pink)}
+.status-uncertain   {color:var(--yellow)}
+.status-omission    {color:var(--muted);text-decoration:line-through}
+
+/* Ending comparison — the key visual */
+.ending-box{display:inline-flex;align-items:center;gap:.4rem;font-family:'IBM Plex Mono',monospace;font-size:.85rem}
+.ending-ref {padding:.15rem .45rem;border-radius:4px;background:#0d2010;color:var(--green);border:1px solid #166534}
+.ending-said{padding:.15rem .45rem;border-radius:4px;background:#2a0f0f;color:var(--red);border:1px solid #991b1b}
+.ending-same{padding:.15rem .45rem;border-radius:4px;background:#0d2010;color:var(--green);border:1px solid #166534}
+.ending-unk {padding:.15rem .45rem;border-radius:4px;background:#2a1f00;color:var(--yellow);border:1px solid #92400e}
+.arrow{color:var(--muted);font-size:.7rem}
+.focus-badge{font-size:.55rem;padding:.1rem .35rem;background:#1e1b4b;color:#a5b4fc;border-radius:3px;font-family:'IBM Plex Mono',monospace;letter-spacing:.05em;text-transform:uppercase;vertical-align:middle;margin-left:.3rem}
+
+/* Score */
+.score-row{display:flex;align-items:center;gap:1rem;margin-top:1rem}
+.score-num{font-size:2.2rem;font-weight:800;font-family:'IBM Plex Mono',monospace}
+.score-bar{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.score-fill{height:100%;border-radius:3px;transition:width 1.2s ease}
+
+/* Error summary */
+.err-summary{margin-top:1rem}
+.err-item{display:flex;align-items:center;gap:.75rem;padding:.6rem .9rem;background:#0d0f14;border:1px solid var(--border);border-radius:6px;margin-bottom:.4rem;flex-wrap:wrap}
+.err-word{font-family:var(--arabic);font-size:1rem;direction:rtl;min-width:80px}
+.err-type{font-size:.62rem;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;padding:.15rem .4rem;border-radius:3px}
+.err-type.wrong_ending{background:#2a0f0f;color:var(--red)}
+.err-type.wrong_word  {background:#2a0a1a;color:var(--pink)}
+.err-type.uncertain   {background:#2a1f00;color:var(--yellow)}
+.err-type.omission    {background:#1a1f2e;color:var(--muted)}
+.err-detail{font-size:.75rem;font-family:'IBM Plex Mono',monospace;color:var(--muted);flex:1}
+.irab-note{font-size:.72rem;color:var(--blue);font-family:var(--arabic);direction:rtl}
+
+/* Loading */
+.overlay{display:none;position:fixed;inset:0;background:rgba(13,15,20,.85);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:1rem}
+.overlay.show{display:flex}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-msg{font-size:.8rem;font-family:'IBM Plex Mono',monospace;color:var(--muted)}
+
+/* Error box */
+.err-box{background:#2a0f0f;border:1px solid #991b1b;border-radius:8px;padding:1rem 1.5rem;color:var(--red);font-family:'IBM Plex Mono',monospace;font-size:.75rem;white-space:pre-wrap;word-break:break-word;margin-top:1rem}
+
+/* Empty state */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;gap:.75rem;color:var(--muted);text-align:center}
+.empty-icon{font-size:3rem}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">ETIB / Arabic I'rab Tester</div>
+  <div class="dot" id="dot"></div>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="side-label">Exercises</div>
+    <div id="ex-list"></div>
+  </aside>
+
+  <main id="main">
+    <div class="empty">
+      <div class="empty-icon">🎙️</div>
+      <div style="font-size:.85rem">Select an exercise to begin</div>
+    </div>
+  </main>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="spinner"></div>
+  <div class="loading-msg" id="loading-msg">Transcribing…</div>
+</div>
+
+<script>
+let exercises = [];
+let current = null;
+let rec = { recorder:null, chunks:[], timer:null, secs:0, analyser:null, raf:null };
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+async function boot() {
+  try {
+    const r = await fetch('/exercises');
+    exercises = await r.json();
+    renderSidebar();
+    document.getElementById('dot').className = 'dot ok';
+  } catch(e) { console.error('Boot failed', e); }
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function renderSidebar() {
+  document.getElementById('ex-list').innerHTML = exercises.map(ex => `
+    <button class="ex-btn" onclick="selectEx('${ex.id}')">
+      <span class="ex-btn-title">${ex.title}</span>
+      <span class="ex-btn-desc">${ex.description}</span>
+    </button>`).join('');
+}
+
+// ── Select exercise ───────────────────────────────────────────────────────────
+function selectEx(id) {
+  current = exercises.find(e => e.id === id);
+  if (!current) return;
+  document.querySelectorAll('.ex-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.ex-btn[onclick="selectEx('${id}')"]`).classList.add('active');
+  renderExercise();
+}
+
+function getRefArabizi(ref) {
+  // Show Arabizi of full reference by converting word by word client-side
+  // (just for display — actual comparison is done server-side)
+  return ref; // we'll show it as-is; server sends Arabizi per word in results
+}
+
+function renderExercise() {
+  const ex = current;
+  document.getElementById('main').innerHTML = `
+    <div class="card">
+      <div class="card-label">Reference text — read this sentence</div>
+      <div class="ref-text">${ex.reference}</div>
+      <div class="tip">💡 ${ex.tip}</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Record your voice</div>
+      <div class="recorder">
+        <button class="rec-btn idle" id="recBtn" onclick="toggleRec()">🎙️</button>
+        <div class="rec-info">
+          <div class="status" id="recStatus">Press to start recording</div>
+          <div class="timer" id="recTimer">0:00</div>
+        </div>
+      </div>
+      <canvas id="wave"></canvas>
+    </div>
+
+    <div id="result"></div>`;
+}
+
+// ── Recording ─────────────────────────────────────────────────────────────────
+async function toggleRec() {
+  if (rec.recorder && rec.recorder.state !== 'inactive') {
+    stopRec();
+  } else {
+    await startRec();
+  }
+}
+
+async function startRec() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    rec.chunks = [];
+    const ctx = new AudioContext();
+    const src = ctx.createMediaStreamSource(stream);
+    rec.analyser = ctx.createAnalyser();
+    rec.analyser.fftSize = 256;
+    src.connect(rec.analyser);
+    drawWave();
+
+    rec.recorder = new MediaRecorder(stream, {mimeType:'audio/webm;codecs=opus'});
+    rec.recorder.ondataavailable = e => { if(e.data.size > 0) rec.chunks.push(e.data); };
+    rec.recorder.onstop = () => { stream.getTracks().forEach(t=>t.stop()); submit(); };
+    rec.recorder.start(100);
+
+    rec.secs = 0;
+    rec.timer = setInterval(() => {
+      rec.secs++;
+      const m = Math.floor(rec.secs/60), s = String(rec.secs%60).padStart(2,'0');
+      const el = document.getElementById('recTimer');
+      if(el){ el.textContent=`${m}:${s}`; el.className='timer rec'; }
+    }, 1000);
+
+    const btn = document.getElementById('recBtn');
+    btn.className = 'rec-btn rec'; btn.textContent = '⏹';
+    document.getElementById('recStatus').textContent = 'Recording… press to stop';
+  } catch(e) {
+    alert('Microphone access denied. Please allow mic access and try again.');
+  }
+}
+
+function stopRec() {
+  if(rec.recorder && rec.recorder.state !== 'inactive') rec.recorder.stop();
+  clearInterval(rec.timer);
+  cancelAnimationFrame(rec.raf);
+  const btn = document.getElementById('recBtn');
+  if(btn){ btn.className='rec-btn proc'; btn.textContent='⏳'; }
+  document.getElementById('recStatus').textContent = 'Processing…';
+}
+
+function drawWave() {
+  const canvas = document.getElementById('wave');
+  if(!canvas) return;
+  const ctx2 = canvas.getContext('2d');
+  const W = canvas.width = canvas.offsetWidth, H = canvas.height;
+  const data = new Uint8Array(rec.analyser.frequencyBinCount);
+  function draw() {
+    rec.raf = requestAnimationFrame(draw);
+    rec.analyser.getByteTimeDomainData(data);
+    ctx2.fillStyle = '#0a0c12'; ctx2.fillRect(0,0,W,H);
+    ctx2.strokeStyle = '#4ade80'; ctx2.lineWidth = 1.5;
+    ctx2.beginPath();
+    const sw = W/data.length; let x=0;
+    for(let i=0;i<data.length;i++){
+      const y=(data[i]/128)*H/2;
+      i===0?ctx2.moveTo(x,y):ctx2.lineTo(x,y); x+=sw;
+    }
+    ctx2.stroke();
+  }
+  draw();
+}
+
+// ── Submit audio ──────────────────────────────────────────────────────────────
+async function submit() {
+  if(!current) return;
+  const blob = new Blob(rec.chunks, {type:'audio/webm'});
+  const form = new FormData();
+  form.append('audio', blob, 'recording.webm');
+  form.append('exercise_id', current.id);
+
+  showLoading('Transcribing audio…');
+  try {
+    const r = await fetch('/analyze', {method:'POST', body:form});
+    const raw = await r.text();
+    if(!r.ok){
+      let msg = raw;
+      try { msg = JSON.parse(raw).detail || raw; } catch {}
+      throw new Error(msg);
+    }
+    const data = JSON.parse(raw);
+    renderResult(data);
+  } catch(e) {
+    document.getElementById('result').innerHTML = `<div class="err-box">⚠️ ${e.message}</div>`;
+  } finally {
+    hideLoading();
+    const btn = document.getElementById('recBtn');
+    if(btn){ btn.className='rec-btn idle'; btn.textContent='🎙️'; }
+    const st = document.getElementById('recStatus');
+    if(st) st.textContent = 'Press to record again';
+    const timer = document.getElementById('recTimer');
+    if(timer){ timer.className='timer'; }
+  }
+}
+
+// ── Render results ────────────────────────────────────────────────────────────
+function renderResult(data) {
+  const { transcript, feedback, tip } = data;
+  const words  = feedback.words  || [];
+  const errors = feedback.errors || [];
+  const score  = feedback.score  || 0;
+
+  const scoreColor = score>=80?'var(--green)':score>=50?'var(--yellow)':'var(--red)';
+  const scoreClass = score>=80?'':score>=50?'medium':'low';
+  const scoreBg    = score>=80?'#4ade80':score>=50?'#facc15':'#f87171';
+
+  // ── Word comparison table ──
+  const rows = words.map(w => {
+    const focusBadge = w.is_focus ? '<span class="focus-badge">FOCUS</span>' : '';
+
+    let endingHtml = '';
+    if(w.status === 'ok') {
+      endingHtml = `<span class="ending-same">${w.ref_ending || '—'}</span> ✓`;
+    } else if(w.status === 'wrong_ending') {
+      endingHtml = `
+        <div class="ending-box">
+          <span class="ending-ref">expected: ${w.ref_ending}</span>
+          <span class="arrow">→</span>
+          <span class="ending-said">said: ${w.said_ending || '?'}</span>
+        </div>`;
+    } else if(w.status === 'uncertain') {
+      endingHtml = `
+        <div class="ending-box">
+          <span class="ending-ref">expected: ${w.ref_ending}</span>
+          <span class="arrow">→</span>
+          <span class="ending-unk">⚠ ${w.said_ending || 'unclear'}</span>
+        </div>`;
+    } else if(w.status === 'wrong_word') {
+      endingHtml = `<span class="ending-said">said: ${w.said_arabizi}</span>`;
+    } else if(w.status === 'omission') {
+      endingHtml = `<span style="color:var(--muted)">(not said)</span>`;
+    }
+
+    const statusClass = `status-${w.status}`;
+
+    return `<tr>
+      <td class="arabic">${w.word}${focusBadge}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;color:#93c5fd">${w.ref_arabizi}</td>
+      <td>${endingHtml}</td>
+      <td class="${statusClass}" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em">${w.status.replace('_',' ')}</td>
+      <td style="color:var(--muted);font-size:.7rem;font-family:var(--arabic);direction:rtl">${w.irab}</td>
+    </tr>`;
+  }).join('');
+
+  // ── Error summary ──
+  const errHtml = errors.length === 0
+    ? `<div style="color:var(--green);font-size:.85rem;padding:.5rem 0">✅ No errors detected!</div>`
+    : errors.map(e => `
+        <div class="err-item">
+          <span class="err-word">${e.word}</span>
+          <span class="err-type ${e.status}">${e.status.replace('_',' ')}</span>
+          <span class="err-detail">
+            ${e.status==='wrong_ending' ? `expected <b>${e.ref_ending}</b> but said <b>${e.said_ending||'?'}</b>` : ''}
+            ${e.status==='uncertain'    ? `expected <b>${e.ref_ending}</b> — Whisper unsure (${e.said_ending})` : ''}
+            ${e.status==='wrong_word'   ? `different word: said <b>${e.said_arabizi}</b>` : ''}
+            ${e.status==='omission'     ? 'word not spoken' : ''}
+          </span>
+          <span class="irab-note">${e.irab}</span>
+        </div>`).join('');
+
+  document.getElementById('result').innerHTML = `
+    <div class="card">
+      <div class="card-label">What you said</div>
+      <div class="transcript">${transcript || '(nothing detected)'}</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Word-by-word Arabizi comparison</div>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Word (Arabic)</th>
+            <th>Reference (Arabizi)</th>
+            <th>Ending comparison</th>
+            <th>Status</th>
+            <th>I'rab</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+
+      <div class="score-row" style="margin-top:1.5rem">
+        <div class="score-num" style="color:${scoreColor}">${score}%</div>
+        <div class="score-bar">
+          <div class="score-fill" style="width:${score}%;background:${scoreBg}"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Errors (${errors.length})</div>
+      ${errHtml}
+    </div>`;
+}
+
+function showLoading(msg) {
+  document.getElementById('loading-msg').textContent = msg;
+  document.getElementById('overlay').classList.add('show');
+}
+function hideLoading() {
+  document.getElementById('overlay').classList.remove('show');
+}
+
+boot();
+</script>
+</body>
+</html>
