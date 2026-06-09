@@ -6,6 +6,7 @@ keyword overlap scoring.
 """
 import os
 import re
+import unicodedata
 from io import BytesIO
 
 
@@ -16,6 +17,14 @@ DEFAULT_CHUNK_OVERLAP = 250
 DEFAULT_MAX_EXCERPTS = 4
 DEFAULT_MAX_EXCERPT_CHARACTERS = 6500
 RETRIEVAL_METHOD = 'keyword_overlap'
+ARABIC_LETTER_NORMALIZATION = str.maketrans({
+    'أ': 'ا',
+    'إ': 'ا',
+    'آ': 'ا',
+    'ٱ': 'ا',
+    'ى': 'ي',
+})
+TOKEN_PATTERN = re.compile(r'\d+(?:[.,]\d+)?%?|\w+', flags=re.UNICODE)
 
 
 class DocumentGroundingError(ValueError):
@@ -295,4 +304,17 @@ def _metadata_terms(params: dict) -> set[str]:
 
 
 def _tokenize(text: str) -> set[str]:
-    return {token.lower() for token in re.findall(r'\w+', text or '', flags=re.UNICODE)}
+    normalized = _normalize_for_matching(text)
+    return {token for token in TOKEN_PATTERN.findall(normalized) if token}
+
+
+def _normalize_for_matching(text: str) -> str:
+    """Normalize text for deterministic multilingual token matching."""
+    text = (text or '').lower()
+    text = text.translate(ARABIC_LETTER_NORMALIZATION)
+    decomposed = unicodedata.normalize('NFKD', text)
+    without_marks = ''.join(
+        char for char in decomposed
+        if unicodedata.category(char) != 'Mn'
+    )
+    return unicodedata.normalize('NFKC', without_marks)

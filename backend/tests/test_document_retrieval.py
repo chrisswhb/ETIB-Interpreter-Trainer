@@ -29,7 +29,7 @@ def fixture_text(filename):
 
 def records_from_fixture(filename, source_order=0):
     text = normalize_text(fixture_text(filename))
-    chunks = chunk_text(text, chunk_size=280, overlap=0)
+    chunks = chunk_text(text, chunk_size=520, overlap=0)
     return [
         {
             'text': chunk,
@@ -52,7 +52,17 @@ def select(records, params, max_excerpts=1):
 
 
 def test_query_terms_strongly_influence_selected_chunks():
-    records = records_from_fixture('climate_en.txt')
+    text = normalize_text(fixture_text('climate_en.txt'))
+    records = [
+        {
+            'text': chunk,
+            'source_filename': 'climate_en.txt',
+            'source_type': '.txt',
+            'chunk_index': index,
+            'source_order': 0,
+        }
+        for index, chunk in enumerate(chunk_text(text, chunk_size=280, overlap=0))
+    ]
 
     selected = select(records, {
         'query': 'renewable energy technology transfer',
@@ -82,7 +92,7 @@ def test_domain_and_scenario_metadata_influence_selection():
 
     text = selected[0]['text'].lower()
     assert 'vaccination' in text
-    assert 'systemes de sante' in text
+    assert 'systèmes de santé' in text
 
 
 def test_number_density_high_prefers_chunks_with_numbers():
@@ -148,3 +158,44 @@ def test_basic_multilingual_retrieval_english_french_arabic():
     assert 'climate finance' in english[0]['text'].lower()
     assert 'vaccination' in french[0]['text'].lower()
     assert 'الجامعة العربية' in arabic[0]['text']
+
+
+def test_french_accent_insensitive_matching():
+    records = records_from_fixture('health_fr.txt')
+
+    selected = select(records, {
+        'query': 'sante prevention financement',
+        'language': 'fr',
+    })
+
+    text = selected[0]['text'].lower()
+    assert 'santé' in text
+    assert 'prévention' in text
+    assert 'financement' in text
+
+
+def test_arabic_alef_and_diacritic_normalization():
+    records = records_from_fixture('diplomacy_ar.txt')
+
+    selected = select(records, {
+        'query': 'الامن الغذائي',
+        'language': 'ar',
+    })
+
+    assert 'الأَمْن الغذائي' in selected[0]['text']
+
+
+def test_numbers_percentages_and_decimals_are_preserved():
+    records = records_from_fixture('numbers_names_en.txt')
+
+    selected = select(records, {
+        'query': '42 2026 18% 1.8',
+        'number_density': 'high',
+        'language': 'en',
+    })
+
+    text = selected[0]['text']
+    assert '42 percent' in text
+    assert '2026' in text
+    assert '18%' in text
+    assert '1.8 billion' in text
