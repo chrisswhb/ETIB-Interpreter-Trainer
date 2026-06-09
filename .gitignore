@@ -22,6 +22,8 @@ uploads/
 *.wav
 *.m4a
 *.ogg
+backend/reports/rag_results/*.json
+!backend/reports/rag_results/.gitkeep
 
 # Whisper model cache (downloaded at runtime, ~1.5GB)
 model_cache/

@@ -1,0 +1,89 @@
+[
+  {
+    "id": "climate_en_exact",
+    "description": "English exact keyword retrieval for climate finance.",
+    "query": "climate finance renewable energy technology transfer",
+    "params": {
+      "language": "en",
+      "domain": "climate",
+      "scenario": "United Nations briefing",
+      "number_density": "medium"
+    },
+    "fixture_files": ["climate_en.txt"],
+    "expected_terms": ["climate finance", "renewable energy", "technology transfer"],
+    "expected_source": "climate_en.txt",
+    "category": "english_exact"
+  },
+  {
+    "id": "health_fr_accent",
+    "description": "French retrieval should match accented text from unaccented query terms.",
+    "query": "sante prevention financement vaccination",
+    "params": {
+      "language": "fr",
+      "domain": "health",
+      "scenario": "Organisation mondiale de la Sante"
+    },
+    "fixture_files": ["health_fr.txt"],
+    "expected_terms": ["santé", "prévention", "financement", "vaccination"],
+    "expected_source": "health_fr.txt",
+    "category": "french_accent"
+  },
+  {
+    "id": "diplomacy_ar_normalization",
+    "description": "Arabic retrieval should match alef and diacritic variants.",
+    "query": "الامن الغذائي الجامعة العربية التعاون الاقليمي",
+    "params": {
+      "language": "ar",
+      "domain": "diplomacy",
+      "scenario": "Arab League summit"
+    },
+    "fixture_files": ["diplomacy_ar.txt"],
+    "expected_terms": ["الأَمْن الغذائي", "الجامعة العربية", "التعاون الإقليمي"],
+    "expected_source": "diplomacy_ar.txt",
+    "category": "arabic_normalization"
+  },
+  {
+    "id": "numbers_names_exact",
+    "description": "Numeric retrieval should preserve dates, decimals, percentages, and institution names.",
+    "query": "World Bank United Nations 42 2026 18% 1.8",
+    "params": {
+      "language": "en",
+      "domain": "finance",
+      "number_density": "high"
+    },
+    "fixture_files": ["numbers_names_en.txt"],
+    "expected_terms": ["World Bank", "United Nations", "42", "2026", "18%", "1.8"],
+    "expected_source": "numbers_names_en.txt",
+    "category": "numbers_names"
+  },
+  {
+    "id": "semantic_paraphrase_placeholder",
+    "description": "Placeholder for future semantic retrieval without exact keyword overlap.",
+    "query": "support poorer nations with clean power investment",
+    "params": {
+      "language": "en",
+      "domain": "climate"
+    },
+    "fixture_files": ["climate_en.txt"],
+    "expected_terms": ["developing countries", "renewable energy"],
+    "expected_source": "climate_en.txt",
+    "category": "semantic_paraphrase_placeholder",
+    "skip": true,
+    "skip_reason": "Requires a future semantic retrieval method."
+  },
+  {
+    "id": "cross_language_placeholder",
+    "description": "Placeholder for future cross-language retrieval.",
+    "query": "food security regional cooperation",
+    "params": {
+      "language": "en",
+      "domain": "diplomacy"
+    },
+    "fixture_files": ["diplomacy_ar.txt"],
+    "expected_terms": ["الأَمْن الغذائي", "التعاون الإقليمي"],
+    "expected_source": "diplomacy_ar.txt",
+    "category": "cross_language_placeholder",
+    "skip": true,
+    "skip_reason": "Requires future cross-language retrieval support."
+  }
+]
