@@ -104,14 +104,56 @@ def matching_term_count(text: str, expected_terms: list[str]) -> int:
 
 def first_relevant_rank(selected_chunks: list[dict], case: dict) -> int | None:
     expected_source = case.get('expected_source')
+    expected_chunk_index = case.get('expected_chunk_index')
     expected_terms = case.get('expected_terms', [])
 
     for index, chunk in enumerate(selected_chunks, start=1):
         source_match = expected_source and chunk.get('source_filename') == expected_source
+        chunk_index_match = (
+            expected_chunk_index is not None
+            and chunk.get('chunk_index') == expected_chunk_index
+        )
         term_match = matching_term_count(chunk.get('text', ''), expected_terms) > 0
-        if source_match or term_match:
+        if expected_chunk_index is not None:
+            if source_match and chunk_index_match and term_match:
+                return index
+        elif expected_terms and term_match:
+            return index
+        elif not expected_terms and source_match:
             return index
     return None
+
+
+def _summarize_subset(results: list[dict]) -> dict:
+    total = len(results)
+    if total == 0:
+        return {
+            'evaluated_cases': 0,
+            'passed_cases': 0,
+            'failed_cases': 0,
+            'recall_at_1': 0,
+            'recall_at_3': 0,
+            'mrr': 0,
+            'exact_term_hit_rate': 0,
+            'average_latency_ms': 0,
+        }
+
+    passed = sum(1 for result in results if result['recall_at_3_hit'])
+    term_hit_total = sum(result['expected_term_hits'] for result in results)
+    expected_term_total = sum(result['expected_term_count'] for result in results)
+
+    return {
+        'evaluated_cases': total,
+        'passed_cases': passed,
+        'failed_cases': total - passed,
+        'recall_at_1': sum(1 for result in results if result['recall_at_1_hit']) / total,
+        'recall_at_3': sum(1 for result in results if result['recall_at_3_hit']) / total,
+        'mrr': sum(result['reciprocal_rank'] for result in results) / total,
+        'exact_term_hit_rate': (
+            0 if expected_term_total == 0 else term_hit_total / expected_term_total
+        ),
+        'average_latency_ms': sum(result['latency_ms'] for result in results) / total,
+    }
 
 
 def evaluate_case(case: dict, selector) -> dict:
@@ -144,10 +186,15 @@ def evaluate_case(case: dict, selector) -> dict:
     return {
         'id': case['id'],
         'category': case['category'],
+        'difficulty': case.get('difficulty', 'unspecified'),
         'skipped': False,
         'query': case['query'],
         'expected_source': case.get('expected_source'),
+        'expected_chunk_index': case.get('expected_chunk_index'),
+        'expected_best_methods': case.get('expected_best_methods', []),
+        'expected_weak_methods': case.get('expected_weak_methods', []),
         'selected_sources': [chunk.get('source_filename') for chunk in selected_chunks],
+        'selected_chunk_indexes': [chunk.get('chunk_index') for chunk in selected_chunks],
         'first_relevant_rank': rank,
         'recall_at_1_hit': rank == 1,
         'recall_at_3_hit': rank is not None and rank <= 3,
@@ -179,25 +226,53 @@ def summarize(results: list[dict]) -> dict:
             'average_latency_ms': 0,
         }
 
-    passed = sum(1 for result in evaluated if result['recall_at_3_hit'])
-    term_hit_total = sum(result['expected_term_hits'] for result in evaluated)
-    expected_term_total = sum(result['expected_term_count'] for result in evaluated)
+    overall = _summarize_subset(evaluated)
 
     return {
         'total_cases': len(results),
         'evaluated_cases': total,
         'skipped_cases': len(skipped),
-        'passed_cases': passed,
-        'failed_cases': total - passed,
-        'recall_at_1': sum(1 for result in evaluated if result['recall_at_1_hit']) / total,
-        'recall_at_3': sum(1 for result in evaluated if result['recall_at_3_hit']) / total,
-        'mrr': sum(result['reciprocal_rank'] for result in evaluated) / total,
-        'exact_term_hit_rate': (
-            0 if expected_term_total == 0 else term_hit_total / expected_term_total
-        ),
-        'average_latency_ms': (
-            sum(result['latency_ms'] for result in evaluated) / total
-        ),
+        'passed_cases': overall['passed_cases'],
+        'failed_cases': overall['failed_cases'],
+        'recall_at_1': overall['recall_at_1'],
+        'recall_at_3': overall['recall_at_3'],
+        'mrr': overall['mrr'],
+        'exact_term_hit_rate': overall['exact_term_hit_rate'],
+        'average_latency_ms': overall['average_latency_ms'],
+        'metrics_by_category': _metrics_by_key(evaluated, 'category'),
+        'metrics_by_difficulty': _metrics_by_key(evaluated, 'difficulty'),
+    }
+
+
+def _metrics_by_key(results: list[dict], key: str) -> dict:
+    values = sorted({result.get(key, 'unspecified') for result in results})
+    return {
+        value: _summarize_subset([
+            result for result in results
+            if result.get(key, 'unspecified') == value
+        ])
+        for value in values
+    }
+
+
+def identify_strengths_and_weaknesses(metrics: dict) -> dict:
+    by_category = metrics.get('metrics_by_category', {})
+    strong = [
+        category for category, values in by_category.items()
+        if values['recall_at_1'] >= 0.8
+    ]
+    weak = [
+        category for category, values in by_category.items()
+        if values['recall_at_3'] < 0.8
+    ]
+    mixed = [
+        category for category, values in by_category.items()
+        if category not in strong and category not in weak
+    ]
+    return {
+        'strong_categories': strong,
+        'mixed_categories': mixed,
+        'weak_categories': weak,
     }
 
 
@@ -219,6 +294,7 @@ def run_evaluation(
         'method_name': method_name,
         'timestamp': datetime.now(timezone.utc).isoformat(),
         'metrics': metrics,
+        'per_method_strengths_and_weaknesses': identify_strengths_and_weaknesses(metrics),
         'per_case_results': per_case_results,
         'notes': method_config['notes'],
         'known_limitations': method_config['known_limitations'],
@@ -244,6 +320,7 @@ def run_all_evaluations(write_output: bool = True) -> list[dict]:
 
 def print_summary(report: dict) -> None:
     metrics = report['metrics']
+    strengths = report['per_method_strengths_and_weaknesses']
     output_path = METHODS[report['method_name']]['output_path']
     print(f"Method: {report['method_name']}")
     print(f"Total cases: {metrics['total_cases']}")
@@ -256,6 +333,9 @@ def print_summary(report: dict) -> None:
     print(f"MRR: {metrics['mrr']:.2f}")
     print(f"Exact term hit rate: {metrics['exact_term_hit_rate']:.2f}")
     print(f"Average latency: {metrics['average_latency_ms']:.2f} ms")
+    print(f"Strong categories: {', '.join(strengths['strong_categories']) or 'none'}")
+    print(f"Mixed categories: {', '.join(strengths['mixed_categories']) or 'none'}")
+    print(f"Weak categories: {', '.join(strengths['weak_categories']) or 'none'}")
     print(f"Report: {output_path.relative_to(REPO_ROOT)}")
 
 
