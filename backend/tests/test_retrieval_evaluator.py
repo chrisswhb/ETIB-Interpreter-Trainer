@@ -13,6 +13,7 @@ from scripts.evaluate_retrieval import (  # noqa: E402
     BM25_METHOD_NAME,
     DENSE_METHOD_NAME,
     HYBRID_METHOD_NAME,
+    HYBRID_WEIGHT_CONFIGS,
     METHOD_NAME,
     load_cases,
     run_all_evaluations,
@@ -48,7 +49,7 @@ def test_retrieval_evaluator_runs_all_methods():
         METHOD_NAME,
         BM25_METHOD_NAME,
         DENSE_METHOD_NAME,
-        HYBRID_METHOD_NAME,
+        *HYBRID_WEIGHT_CONFIGS,
     }
     for method_name in (METHOD_NAME, BM25_METHOD_NAME):
         report = by_method[method_name]
@@ -71,6 +72,21 @@ def test_retrieval_evaluator_runs_all_methods():
     assert hybrid_report['metrics']['total_cases'] > 0
     assert 'per_case_results' in hybrid_report
     assert hybrid_report['per_case_results']
+
+
+def test_hybrid_weight_configuration_names_are_registered():
+    import scripts.evaluate_retrieval as evaluator
+
+    assert HYBRID_WEIGHT_CONFIGS == {
+        'hybrid_bm25_dense_0_2_0_8': (0.2, 0.8),
+        'hybrid_bm25_dense_0_3_0_7': (0.3, 0.7),
+        'hybrid_bm25_dense_0_4_0_6': (0.4, 0.6),
+        HYBRID_METHOD_NAME: (0.5, 0.5),
+    }
+    for method_name, (bm25_weight, dense_weight) in HYBRID_WEIGHT_CONFIGS.items():
+        assert method_name in evaluator.METHODS
+        assert evaluator.METHODS[method_name]['bm25_weight'] == bm25_weight
+        assert evaluator.METHODS[method_name]['dense_weight'] == dense_weight
 
 
 def test_retrieval_cases_include_harder_and_future_baselines():
@@ -117,21 +133,22 @@ def test_dense_evaluator_skips_cleanly_when_unavailable(monkeypatch):
 def test_hybrid_evaluator_skips_cleanly_when_dense_unavailable(monkeypatch):
     import scripts.evaluate_retrieval as evaluator
 
-    monkeypatch.setitem(
-        evaluator.METHODS[HYBRID_METHOD_NAME],
-        'availability_check',
-        lambda: False,
-    )
+    for method_name in HYBRID_WEIGHT_CONFIGS:
+        monkeypatch.setitem(
+            evaluator.METHODS[method_name],
+            'availability_check',
+            lambda: False,
+        )
 
-    report = run_evaluation(method_name=HYBRID_METHOD_NAME, write_output=False)
-    metrics = report['metrics']
+        report = run_evaluation(method_name=method_name, write_output=False)
+        metrics = report['metrics']
 
-    assert report['method_name'] == HYBRID_METHOD_NAME
-    assert report['method_available'] is False
-    assert 'sentence-transformers' in report['unavailable_reason']
-    assert metrics['total_cases'] > 0
-    assert metrics['evaluated_cases'] == 0
-    assert metrics['skipped_cases'] == metrics['total_cases']
+        assert report['method_name'] == method_name
+        assert report['method_available'] is False
+        assert 'sentence-transformers' in report['unavailable_reason']
+        assert metrics['total_cases'] > 0
+        assert metrics['evaluated_cases'] == 0
+        assert metrics['skipped_cases'] == metrics['total_cases']
 
 
 def test_dense_evaluator_output_shape_when_selector_is_available(monkeypatch):

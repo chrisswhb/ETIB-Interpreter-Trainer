@@ -47,10 +47,16 @@ DENSE_METHOD_NAME = DENSE_RETRIEVAL_METHOD
 HYBRID_METHOD_NAME = HYBRID_RETRIEVAL_METHOD
 HYBRID_BM25_WEIGHT = 0.5
 HYBRID_DENSE_WEIGHT = 0.5
+HYBRID_WEIGHT_CONFIGS = {
+    'hybrid_bm25_dense_0_2_0_8': (0.2, 0.8),
+    'hybrid_bm25_dense_0_3_0_7': (0.3, 0.7),
+    'hybrid_bm25_dense_0_4_0_6': (0.4, 0.6),
+    HYBRID_METHOD_NAME: (HYBRID_BM25_WEIGHT, HYBRID_DENSE_WEIGHT),
+}
 MAX_EXCERPTS = 3
 CHUNK_SIZE = 520
 CHUNK_OVERLAP = 0
-METHODS = {
+BASE_METHODS = {
     METHOD_NAME: {
         'selector': select_relevant_chunks_with_metadata,
         'output_path': REPORT_DIR / 'rag_lite_baseline.json',
@@ -98,14 +104,20 @@ METHODS = {
             'No GraphRAG or relation-graph reasoning.',
         ],
     },
-    HYBRID_METHOD_NAME: {
+}
+
+
+def _hybrid_method_config(method_name: str, bm25_weight: float, dense_weight: float) -> dict:
+    return {
         'selector': select_relevant_chunks_hybrid_with_metadata,
-        'output_path': REPORT_DIR / 'hybrid_bm25_dense_baseline.json',
+        'output_path': REPORT_DIR / f'{method_name}_baseline.json',
         'optional': True,
         'availability_check': is_dense_embedding_available,
+        'bm25_weight': bm25_weight,
+        'dense_weight': dense_weight,
         'notes': [
             'Hybrid retrieval baseline combining normalized BM25 and dense multilingual scores.',
-            f'Weights: BM25={HYBRID_BM25_WEIGHT:.2f}, dense={HYBRID_DENSE_WEIGHT:.2f}.',
+            f'Weights: BM25={bm25_weight:.2f}, dense={dense_weight:.2f}.',
             'No LLM calls, vector database, endpoint integration, or network calls are made by evaluator logic.',
         ],
         'known_limitations': [
@@ -114,8 +126,16 @@ METHODS = {
             'No vector database persistence.',
             'No GraphRAG or relation-graph reasoning.',
         ],
-    },
-}
+    }
+
+
+METHODS = dict(BASE_METHODS)
+for hybrid_method_name, (bm25_weight, dense_weight) in HYBRID_WEIGHT_CONFIGS.items():
+    METHODS[hybrid_method_name] = _hybrid_method_config(
+        hybrid_method_name,
+        bm25_weight,
+        dense_weight,
+    )
 
 
 def load_cases(cases_path: Path = CASES_PATH) -> list[dict]:
@@ -203,7 +223,7 @@ def _summarize_subset(results: list[dict]) -> dict:
     }
 
 
-def evaluate_case(case: dict, selector) -> dict:
+def evaluate_case(case: dict, method_config: dict) -> dict:
     if case.get('skip'):
         return {
             'id': case['id'],
@@ -217,14 +237,15 @@ def evaluate_case(case: dict, selector) -> dict:
 
     started = time.perf_counter()
     records = load_chunk_records(case)
+    selector = method_config['selector']
     selector_kwargs = {
         'max_excerpts': MAX_EXCERPTS,
         'max_total_characters': MAX_EXCERPTS * CHUNK_SIZE,
     }
     if selector is select_relevant_chunks_hybrid_with_metadata:
         selector_kwargs.update({
-            'bm25_weight': HYBRID_BM25_WEIGHT,
-            'dense_weight': HYBRID_DENSE_WEIGHT,
+            'bm25_weight': method_config.get('bm25_weight', HYBRID_BM25_WEIGHT),
+            'dense_weight': method_config.get('dense_weight', HYBRID_DENSE_WEIGHT),
         })
     selected_chunks = selector(records, params, **selector_kwargs)
     latency_ms = (time.perf_counter() - started) * 1000
@@ -375,10 +396,9 @@ def run_evaluation(
                 f'{OPTIONAL_DEPENDENCY_MESSAGE}',
             )
 
-    selector = method_config['selector']
     cases = load_cases()
     try:
-        per_case_results = [evaluate_case(case, selector) for case in cases]
+        per_case_results = [evaluate_case(case, method_config) for case in cases]
     except DenseEmbeddingUnavailable as exc:
         return unavailable_method_report(method_name, str(exc))
 
