@@ -30,10 +30,18 @@ from utils.document_grounding import (  # noqa: E402
     select_relevant_chunks_with_metadata,
     _tokenize,
 )
+from utils.embedding_retrieval import (  # noqa: E402
+    DENSE_RETRIEVAL_METHOD,
+    DenseEmbeddingUnavailable,
+    OPTIONAL_DEPENDENCY_MESSAGE,
+    is_dense_embedding_available,
+    select_relevant_chunks_dense_with_metadata,
+)
 
 
 METHOD_NAME = 'rag_lite_keyword_metadata'
 BM25_METHOD_NAME = 'bm25_keyword'
+DENSE_METHOD_NAME = DENSE_RETRIEVAL_METHOD
 MAX_EXCERPTS = 3
 CHUNK_SIZE = 520
 CHUNK_OVERLAP = 0
@@ -66,6 +74,23 @@ METHODS = {
             'No semantic paraphrase retrieval.',
             'No cross-language retrieval.',
             'Small fixture sets can make BM25 metrics look stronger than production behavior.',
+        ],
+    },
+    DENSE_METHOD_NAME: {
+        'selector': select_relevant_chunks_dense_with_metadata,
+        'output_path': REPORT_DIR / 'dense_multilingual_embedding_baseline.json',
+        'optional': True,
+        'availability_check': is_dense_embedding_available,
+        'notes': [
+            'Dense multilingual embedding retrieval baseline for offline evaluation.',
+            'Uses sentence-transformers only when the optional dependency and model are available.',
+            'No LLM calls, vector database, endpoint integration, or network calls are made by evaluator logic.',
+        ],
+        'known_limitations': [
+            'Model availability depends on local dependencies and cached/downloadable model files.',
+            'No hybrid lexical+dense reranking yet.',
+            'No vector database persistence.',
+            'No GraphRAG or relation-graph reasoning.',
         ],
     },
 }
@@ -224,6 +249,8 @@ def summarize(results: list[dict]) -> dict:
             'mrr': 0,
             'exact_term_hit_rate': 0,
             'average_latency_ms': 0,
+            'metrics_by_category': {},
+            'metrics_by_difficulty': {},
         }
 
     overall = _summarize_subset(evaluated)
@@ -276,6 +303,34 @@ def identify_strengths_and_weaknesses(metrics: dict) -> dict:
     }
 
 
+def unavailable_method_report(method_name: str, reason: str) -> dict:
+    cases = load_cases()
+    skipped_results = [
+        {
+            'id': case['id'],
+            'category': case['category'],
+            'difficulty': case.get('difficulty', 'unspecified'),
+            'skipped': True,
+            'skip_reason': reason,
+        }
+        for case in cases
+    ]
+    metrics = summarize(skipped_results)
+    method_config = METHODS[method_name]
+
+    return {
+        'method_name': method_name,
+        'method_available': False,
+        'unavailable_reason': reason,
+        'timestamp': datetime.now(timezone.utc).isoformat(),
+        'metrics': metrics,
+        'per_method_strengths_and_weaknesses': identify_strengths_and_weaknesses(metrics),
+        'per_case_results': skipped_results,
+        'notes': method_config['notes'],
+        'known_limitations': method_config['known_limitations'],
+    }
+
+
 def run_evaluation(
     method_name: str = METHOD_NAME,
     write_output: bool = True,
@@ -285,13 +340,27 @@ def run_evaluation(
         raise ValueError(f'Unknown retrieval method: {method_name}')
 
     method_config = METHODS[method_name]
+    if method_config.get('optional'):
+        availability_check = method_config.get('availability_check')
+        if availability_check and not availability_check():
+            return unavailable_method_report(
+                method_name,
+                'Optional dense embedding dependency sentence-transformers is not installed. '
+                f'{OPTIONAL_DEPENDENCY_MESSAGE}',
+            )
+
     selector = method_config['selector']
     cases = load_cases()
-    per_case_results = [evaluate_case(case, selector) for case in cases]
+    try:
+        per_case_results = [evaluate_case(case, selector) for case in cases]
+    except DenseEmbeddingUnavailable as exc:
+        return unavailable_method_report(method_name, str(exc))
+
     metrics = summarize(per_case_results)
 
     report = {
         'method_name': method_name,
+        'method_available': True,
         'timestamp': datetime.now(timezone.utc).isoformat(),
         'metrics': metrics,
         'per_method_strengths_and_weaknesses': identify_strengths_and_weaknesses(metrics),
@@ -300,7 +369,7 @@ def run_evaluation(
         'known_limitations': method_config['known_limitations'],
     }
 
-    if write_output:
+    if write_output and report.get('method_available', True):
         output_path = output_path or method_config['output_path']
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(
@@ -323,6 +392,9 @@ def print_summary(report: dict) -> None:
     strengths = report['per_method_strengths_and_weaknesses']
     output_path = METHODS[report['method_name']]['output_path']
     print(f"Method: {report['method_name']}")
+    if not report.get('method_available', True):
+        print('Status: unavailable/skipped')
+        print(f"Reason: {report.get('unavailable_reason', 'Unavailable')}")
     print(f"Total cases: {metrics['total_cases']}")
     print(f"Evaluated cases: {metrics['evaluated_cases']}")
     print(f"Skipped cases: {metrics['skipped_cases']}")
@@ -336,7 +408,10 @@ def print_summary(report: dict) -> None:
     print(f"Strong categories: {', '.join(strengths['strong_categories']) or 'none'}")
     print(f"Mixed categories: {', '.join(strengths['mixed_categories']) or 'none'}")
     print(f"Weak categories: {', '.join(strengths['weak_categories']) or 'none'}")
-    print(f"Report: {output_path.relative_to(REPO_ROOT)}")
+    if report.get('method_available', True):
+        print(f"Report: {output_path.relative_to(REPO_ROOT)}")
+    else:
+        print('Report: not written because method is unavailable')
 
 
 def main() -> int:

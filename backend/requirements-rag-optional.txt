@@ -1,0 +1,3 @@
+# Optional dependencies for offline dense embedding retrieval evaluation only.
+# Not required for Flask startup, normal backend install, or lexical/BM25 retrieval.
+sentence-transformers==3.0.1
