@@ -1345,6 +1345,21 @@ body.rtl .upload-fallback[open] summary::before { transform: rotate(270deg); }
   border-left: 3px solid var(--gold);
 }
 
+.grounded-source-note {
+  margin-bottom: 0.6rem;
+  font-size: 0.78rem;
+  color: var(--warm-gray);
+  background: rgba(76,154,96,0.08);
+  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
+  border-left: 3px solid #4c9a60;
+}
+.grounded-source-note a { color: #2f7a44; font-weight: 600; }
+.grounded-source-note--missing {
+  background: rgba(200,151,58,0.07);
+  border-left: 3px solid var(--gold);
+}
+
 /* ══════════════════════════════════
    RESULT SECTIONS (Module A)
    ══════════════════════════════════ */

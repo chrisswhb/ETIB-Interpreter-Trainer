@@ -53,6 +53,8 @@ const UI = {
     navC: 'Record & transcribe',
     navD: 'Evaluation',
     moduleATitle: 'Generate training speech',
+    groundedSourceLabel: 'Grounded in real UN document:',
+    ungroundedNote: 'No matching UN document was found — this speech was generated without source grounding.',
     language: 'Speech language',
     targetLanguage: 'Target language',
     topic: 'Topic',
@@ -225,6 +227,8 @@ const UI = {
     navC: 'التسجيل والتفريغ',
     navD: 'التقييم',
     moduleATitle: 'توليد خطاب تدريبي',
+    groundedSourceLabel: 'مستند إلى وثيقة أممية حقيقية:',
+    ungroundedNote: 'لم يتم العثور على وثيقة أممية مطابقة — تم إنشاء هذا الخطاب دون الاستناد إلى مصدر.',
     language: 'لغة الخطاب',
     targetLanguage: 'لغة الترجمة الهدف',
     topic: 'الموضوع',
@@ -397,6 +401,8 @@ const UI = {
     navC: 'Enregistrer et transcrire',
     navD: 'Évaluation',
     moduleATitle: 'Générer un discours d’entraînement',
+    groundedSourceLabel: 'Basé sur un document réel de l’ONU :',
+    ungroundedNote: 'Aucun document de l’ONU correspondant n’a été trouvé — ce discours a été généré sans source.',
     language: 'Langue du discours',
     targetLanguage: 'Langue cible',
     domain: 'Domaine',
@@ -1415,6 +1421,24 @@ function SpeechResult({ data, labels }) {
         <span>{data.domain}</span>
         <span>{String(data.language || '').toUpperCase()} → {String(data.target_language || '').toUpperCase()}</span>
       </div>
+      {data.mode === 'un_library_grounded' && data.source_speech && (
+        <p className="grounded-source-note">
+          {labels.groundedSourceLabel}{' '}
+          {data.source_speech.web_url ? (
+            <a href={data.source_speech.web_url} target="_blank" rel="noopener noreferrer">
+              {data.source_speech.title || data.source_speech.un_id}
+            </a>
+          ) : (
+            data.source_speech.title || data.source_speech.un_id
+          )}
+          {data.source_speech.date ? ` (${data.source_speech.date})` : ''}
+        </p>
+      )}
+      {data.mode === 'generated' && (
+        <p className="grounded-source-note grounded-source-note--missing">
+          {labels.ungroundedNote}
+        </p>
+      )}
       <div className={`speech-text ${isArabic ? 'arabic' : ''}`}>
         {data.script}
       </div>
