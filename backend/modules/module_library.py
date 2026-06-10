@@ -20,6 +20,8 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 
+from services.llm_service import generate_text
+
 module_library_bp = Blueprint('module_library', __name__)
 
 # ── UN Digital Library endpoints ─────────────────────────────────────────────
@@ -129,6 +131,11 @@ def search_un_library():
 
     if not q and not domain:
         return jsonify({'error': 'q or domain is required'}), 400
+
+    # The UN Digital Library catalog is indexed in English/French — Arabic
+    # search terms match nothing, so translate Arabic queries before searching.
+    if q and _looks_like_arabic(q):
+        q = _translate_query_to_english(q)
 
     # Build search query
     query_parts = []
@@ -457,6 +464,30 @@ def _looks_like_arabic(text: str, threshold: float = 0.2) -> bool:
         return False
     arabic = sum(1 for c in letters if '؀' <= c <= 'ۿ' or 'ݐ' <= c <= 'ݿ')
     return (arabic / len(letters)) >= threshold
+
+
+def _translate_query_to_english(query: str) -> str:
+    """Translate an Arabic search query into English keywords for the UN catalog."""
+    try:
+        translation = generate_text(
+            messages=[
+                {
+                    'role': 'system',
+                    'content': (
+                        'Translate the user\'s search query into a short English keyword '
+                        'phrase suitable for searching a UN document catalog. '
+                        'Reply with only the translated keywords, nothing else.'
+                    ),
+                },
+                {'role': 'user', 'content': query},
+            ],
+            max_tokens=50,
+            temperature=0,
+        )
+        translated = translation.strip().strip('"').strip()
+        return translated or query
+    except Exception:
+        return query
 
 
 # ── Saved speeches ───────────────────────────────────────────────────────────
