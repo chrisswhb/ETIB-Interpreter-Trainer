@@ -32,16 +32,21 @@ from utils.document_grounding import (  # noqa: E402
 )
 from utils.embedding_retrieval import (  # noqa: E402
     DENSE_RETRIEVAL_METHOD,
+    HYBRID_RETRIEVAL_METHOD,
     DenseEmbeddingUnavailable,
     OPTIONAL_DEPENDENCY_MESSAGE,
     is_dense_embedding_available,
     select_relevant_chunks_dense_with_metadata,
+    select_relevant_chunks_hybrid_with_metadata,
 )
 
 
 METHOD_NAME = 'rag_lite_keyword_metadata'
 BM25_METHOD_NAME = 'bm25_keyword'
 DENSE_METHOD_NAME = DENSE_RETRIEVAL_METHOD
+HYBRID_METHOD_NAME = HYBRID_RETRIEVAL_METHOD
+HYBRID_BM25_WEIGHT = 0.5
+HYBRID_DENSE_WEIGHT = 0.5
 MAX_EXCERPTS = 3
 CHUNK_SIZE = 520
 CHUNK_OVERLAP = 0
@@ -89,6 +94,23 @@ METHODS = {
         'known_limitations': [
             'Model availability depends on local dependencies and cached/downloadable model files.',
             'No hybrid lexical+dense reranking yet.',
+            'No vector database persistence.',
+            'No GraphRAG or relation-graph reasoning.',
+        ],
+    },
+    HYBRID_METHOD_NAME: {
+        'selector': select_relevant_chunks_hybrid_with_metadata,
+        'output_path': REPORT_DIR / 'hybrid_bm25_dense_baseline.json',
+        'optional': True,
+        'availability_check': is_dense_embedding_available,
+        'notes': [
+            'Hybrid retrieval baseline combining normalized BM25 and dense multilingual scores.',
+            f'Weights: BM25={HYBRID_BM25_WEIGHT:.2f}, dense={HYBRID_DENSE_WEIGHT:.2f}.',
+            'No LLM calls, vector database, endpoint integration, or network calls are made by evaluator logic.',
+        ],
+        'known_limitations': [
+            'Requires optional sentence-transformers dependencies and the dense model.',
+            'Weights are fixed inside the evaluator script and are not tuned per category.',
             'No vector database persistence.',
             'No GraphRAG or relation-graph reasoning.',
         ],
@@ -195,12 +217,16 @@ def evaluate_case(case: dict, selector) -> dict:
 
     started = time.perf_counter()
     records = load_chunk_records(case)
-    selected_chunks = selector(
-        records,
-        params,
-        max_excerpts=MAX_EXCERPTS,
-        max_total_characters=MAX_EXCERPTS * CHUNK_SIZE,
-    )
+    selector_kwargs = {
+        'max_excerpts': MAX_EXCERPTS,
+        'max_total_characters': MAX_EXCERPTS * CHUNK_SIZE,
+    }
+    if selector is select_relevant_chunks_hybrid_with_metadata:
+        selector_kwargs.update({
+            'bm25_weight': HYBRID_BM25_WEIGHT,
+            'dense_weight': HYBRID_DENSE_WEIGHT,
+        })
+    selected_chunks = selector(records, params, **selector_kwargs)
     latency_ms = (time.perf_counter() - started) * 1000
 
     rank = first_relevant_rank(selected_chunks, case)
