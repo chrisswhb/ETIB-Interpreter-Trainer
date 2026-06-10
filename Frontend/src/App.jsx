@@ -666,16 +666,18 @@ function ThreeBackground() {
 
     const globe = new THREE.Mesh(
       new THREE.SphereGeometry(2.2, 64, 64),
-      new THREE.MeshStandardMaterial({ color: 0xC8973A, wireframe: true, transparent: true, opacity: 0.85, wireframeLinewidth: 0.015 })
+      new THREE.MeshStandardMaterial({ color: 0xC8973A, wireframe: true, transparent: true, opacity: 0.32, wireframeLinewidth: 0.015 })
     );
-    globe.position.set(0, 0, -2);
+    globe.position.set(1.8, 0, -2);
+    globe.scale.setScalar(0.6);
     scene.add(globe);
 
     const inner = new THREE.Mesh(
       new THREE.SphereGeometry(1.8, 32, 32),
-      new THREE.MeshStandardMaterial({ color: 0x2D5A4E, wireframe: true, transparent: true, opacity: 0.85, wireframeLinewidth: 0.015 })
+      new THREE.MeshStandardMaterial({ color: 0x2D5A4E, wireframe: true, transparent: true, opacity: 0.32, wireframeLinewidth: 0.015 })
     );
-    inner.position.set(0, 0, -2);
+    inner.position.set(1.8, 0, -2);
+    inner.scale.setScalar(0.6);
     scene.add(inner);
 
     const pCount = 120;
@@ -694,7 +696,8 @@ function ThreeBackground() {
       new THREE.TorusGeometry(2.8, 0.012, 8, 100),
       new THREE.MeshBasicMaterial({ color: 0xC8973A, transparent: true, opacity: 0.12 })
     );
-    ring.position.set(0, 0, -2);
+    ring.position.set(1.8, 0, -2);
+    ring.scale.setScalar(0.6);
     ring.rotation.x = Math.PI / 3;
     scene.add(ring);
 
