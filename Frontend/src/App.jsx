@@ -666,16 +666,16 @@ function ThreeBackground() {
 
     const globe = new THREE.Mesh(
       new THREE.SphereGeometry(2.2, 64, 64),
-      new THREE.MeshStandardMaterial({ color: 0xC8973A, wireframe: true, transparent: true, opacity: 0.08 })
+      new THREE.MeshStandardMaterial({ color: 0xC8973A, wireframe: true, transparent: true, opacity: 0.85, wireframeLinewidth: 0.015 })
     );
-    globe.position.set(3, -0.5, -2);
+    globe.position.set(0, 0, -2);
     scene.add(globe);
 
     const inner = new THREE.Mesh(
       new THREE.SphereGeometry(1.8, 32, 32),
-      new THREE.MeshStandardMaterial({ color: 0x2D5A4E, wireframe: true, transparent: true, opacity: 0.05 })
+      new THREE.MeshStandardMaterial({ color: 0x2D5A4E, wireframe: true, transparent: true, opacity: 0.85, wireframeLinewidth: 0.015 })
     );
-    inner.position.set(3, -0.5, -2);
+    inner.position.set(0, 0, -2);
     scene.add(inner);
 
     const pCount = 120;
@@ -694,7 +694,7 @@ function ThreeBackground() {
       new THREE.TorusGeometry(2.8, 0.012, 8, 100),
       new THREE.MeshBasicMaterial({ color: 0xC8973A, transparent: true, opacity: 0.12 })
     );
-    ring.position.set(3, -0.5, -2);
+    ring.position.set(0, 0, -2);
     ring.rotation.x = Math.PI / 3;
     scene.add(ring);
 
@@ -872,25 +872,27 @@ function LoginScreen({ labels, onLogin, onSignup }) {
     <section className="hero fade-up delay-1">
       {/* Left: marketing copy */}
       <div className="hero-text">
-        <div className="lang-pills">
-          <span className="pill pill-ar">عربي</span>
-          <span className="pill pill-fr">Français</span>
-          <span className="pill pill-en">English</span>
+        <div className="lang-tabs">
+          <span className="lang-tabs-label">Train in:</span>
+          <span className="lang-tab lang-tab-ar">عربي</span>
+          <span className="lang-tab lang-tab-fr">Français</span>
+          <span className="lang-tab lang-tab-en">English</span>
         </div>
         <h1>Master interpretation with <em>AI-generated</em> speeches</h1>
         <p>An adaptive training platform that generates realistic conference speeches, builds multilingual glossaries, and evaluates your interpretation performance across Arabic, French, and English.</p>
-        <div className="stat-cluster">
-          <div className="stat-card">
-            <div className="stat-icon si-gold">🎙️</div>
-            <div className="stat-info"><label>Sessions available</label><strong>∞</strong><span>AI-generated on demand</span></div>
+        <div className="metric-row">
+          <div className="metric-card">
+            <span className="metric-label">Sessions</span>
+            <strong className="metric-value">∞</strong>
           </div>
-          <div className="stat-card">
-            <div className="stat-icon si-sage">📚</div>
-            <div className="stat-info"><label>Languages</label><strong>3</strong><span>Arabic · French · English</span></div>
+          <div className="metric-card">
+            <span className="metric-label">Languages</span>
+            <strong className="metric-value">3</strong>
           </div>
-          <div className="stat-card">
-            <div className="stat-icon si-sienna">⭐</div>
-            <div className="stat-info"><label>Evaluation</label><strong>AI</strong><span><span className="pulse-dot"></span>Live feedback</span></div>
+          <div className="metric-card">
+            <span className="metric-label">Modes</span>
+            <strong className="metric-value">3</strong>
+            <span className="metric-detail">Consecutive · Simultaneous · Sight</span>
           </div>
         </div>
       </div>

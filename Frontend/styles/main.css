@@ -156,23 +156,29 @@ main { padding: 2.5rem 0 4rem; display: flex; flex-direction: column; gap: 2rem;
   margin-bottom: 1.8rem;
 }
 
-.lang-pills { display: flex; gap: 0.5rem; margin-bottom: 1.4rem; }
-.pill {
-  padding: 0.28rem 0.9rem;
-  border-radius: 20px;
+.lang-tabs { display: flex; align-items: center; gap: 1.4rem; margin-bottom: 2rem; }
+.lang-tabs-label {
   font-size: 0.74rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  color: var(--warm-gray);
 }
-.pill-ar { background: rgba(139,58,42,0.12); color: var(--sienna); }
-.pill-fr { background: rgba(45,90,78,0.12); color: var(--sage); }
-.pill-en { background: rgba(200,151,58,0.15); color: #7A5A10; }
+.lang-tab {
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid transparent;
+  cursor: default;
+}
+.lang-tab-ar { color: var(--sienna); border-bottom-color: var(--sienna); }
+.lang-tab-fr { color: var(--sage); border-bottom-color: var(--sage); }
+.lang-tab-en { color: #7A5A10; border-bottom-color: var(--gold); }
 
 /* ══════════════════════════════════
    CARDS
    ══════════════════════════════════ */
-.card, .sim-panel, .glossary-section, .stat-card, .feat-card {
+.card, .sim-panel, .glossary-section, .feat-card {
   background: var(--card-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -230,9 +236,10 @@ main { padding: 2.5rem 0 4rem; display: flex; flex-direction: column; gap: 2rem;
   background: var(--card-bg);
   backdrop-filter: blur(16px);
   border: 1px solid rgba(200,151,58,0.2);
+  border-top: 3px solid #C8973A;
   border-radius: 22px;
   padding: 2.2rem;
-  box-shadow: var(--shadow);
+  box-shadow: 0 12px 40px rgba(26,21,16,0.14);
 }
 .login-panel h2 {
   font-family: 'Playfair Display', serif;
@@ -274,7 +281,7 @@ main { padding: 2.5rem 0 4rem; display: flex; flex-direction: column; gap: 2rem;
 
 .login-submit { width: 100%; margin-top: 0.5rem; padding: 0.9rem; font-size: 0.92rem; border-radius: 11px; }
 .login-switch { text-align: center; margin-top: 1.2rem; font-size: 0.84rem; color: var(--warm-gray); }
-.login-switch button { background: none; border: none; color: var(--gold); cursor: pointer; font-size: 0.84rem; font-weight: 600; text-decoration: underline; padding: 0; }
+.login-switch button { background: none; border: none; color: var(--gold); cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: underline; padding: 0; }
 .login-switch button:hover { color: var(--sienna); }
 .login-note { font-size: 0.78rem; color: var(--warm-gray); margin-bottom: 1rem; }
 
@@ -308,37 +315,23 @@ main { padding: 2.5rem 0 4rem; display: flex; flex-direction: column; gap: 2rem;
 /* ══════════════════════════════════
    STAT CARDS (dashboard)
    ══════════════════════════════════ */
-.stat-cluster { display: flex; flex-direction: column; gap: 1rem; }
-.stat-card {
+.metric-row { display: flex; gap: 0.8rem; }
+.metric-card {
+  flex: 1;
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(200,151,58,0.18);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.1rem 1.4rem;
-  transition: transform 0.22s;
-  cursor: default;
+  flex-direction: column;
+  gap: 0.3rem;
+  text-align: center;
 }
-.stat-card:hover { transform: translateX(-4px); }
-.stat-icon {
-  width: 44px; height: 44px;
-  border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.25rem;
-  flex-shrink: 0;
-}
-.si-gold { background: rgba(200,151,58,0.15); }
-.si-sage { background: rgba(45,90,78,0.12); }
-.si-sienna { background: rgba(139,58,42,0.12); }
-.stat-info label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--warm-gray); }
-.stat-info strong { display: block; font-size: 1.3rem; font-weight: 700; color: var(--ink); line-height: 1.2; }
-.stat-info span { font-size: 0.75rem; color: var(--sage-light); }
-.pulse-dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: var(--sage-light);
-  display: inline-block;
-  animation: pulse 2s ease infinite;
-  margin-right: 5px;
-}
+.metric-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--warm-gray); }
+.metric-value { font-size: 1.4rem; font-weight: 700; color: var(--ink); line-height: 1.2; }
+.metric-detail { font-size: 0.68rem; color: var(--sage-light); }
 
 /* ══════════════════════════════════
    SECTION TITLES
@@ -976,8 +969,8 @@ audio { width: 100%; accent-color: var(--gold); }
    ══════════════════════════════════ */
 @media (max-width: 900px) {
   .hero { grid-template-columns: 1fr; min-height: auto; }
-  .stat-cluster { flex-direction: row; flex-wrap: wrap; }
-  .stat-card { flex: 1; min-width: 200px; }
+  .metric-row { flex-wrap: wrap; }
+  .metric-card { min-width: 140px; }
   .features-grid { grid-template-columns: 1fr 1fr; }
   .algo-grid { grid-template-columns: repeat(2, 1fr); }
   .progress-section { grid-template-columns: repeat(2, 1fr); }
