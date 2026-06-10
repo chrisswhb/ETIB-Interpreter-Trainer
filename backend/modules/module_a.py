@@ -11,7 +11,7 @@ import re
 from flask import Blueprint, jsonify, request
 from werkzeug.utils import secure_filename
 
-from config import DEFAULT_WPM
+from config import DEFAULT_WORD_COUNT, DEFAULT_WPM
 from services.llm_service import generate_text
 from utils.document_grounding import (
     DEFAULT_CHUNK_CHARACTERS,
@@ -539,8 +539,53 @@ def uploaded_document_files(files) -> list:
     return [file for file in uploaded_files if file and file.filename]
 
 
+def _expand_script_to_word_count(script: str, target_word_count: int, language: str) -> str:
+    """If the script falls noticeably short of the requested word count, ask
+    the LLM to expand it (preserving wording/facts) until it gets closer."""
+    actual = len(script.split())
+    if not script or actual >= target_word_count * 0.9:
+        return script
+
+    lang_name = LANGUAGE_NAMES.get(language, 'English')
+    try:
+        expanded = generate_text(
+            messages=[
+                {
+                    'role': 'system',
+                    'content': (
+                        f'You expand conference speech scripts written in {lang_name}. '
+                        'Keep all existing wording, facts, and structure intact, and add '
+                        'further elaboration, examples, transitions, and detail until the '
+                        'text reaches the target word count. '
+                        'Return ONLY the expanded speech text — no JSON, no headings, no commentary.'
+                    ),
+                },
+                {
+                    'role': 'user',
+                    'content': (
+                        f'Target length: {target_word_count} words (current: {actual} words).\n\n'
+                        f'Speech:\n{script}'
+                    ),
+                },
+            ],
+            max_tokens=min(6000, max(1500, int(target_word_count * 2.5))),
+            temperature=0.6,
+        )
+        expanded = expanded.strip()
+        if language == 'ar':
+            expanded = _clean_arabic_script(expanded)
+        if len(expanded.split()) > actual:
+            return expanded
+    except Exception:
+        pass
+    return script
+
+
 def build_generation_response(generated: dict, params: dict, mode: str = 'generated', extra: dict | None = None) -> dict:
     script = generated['script']
+    target_word_count = int(params.get('word_count', DEFAULT_WORD_COUNT))
+    script = _expand_script_to_word_count(script, target_word_count, params.get('language', 'ar'))
+    generated['script'] = script
     word_count = len(script.split())
     wpm = params.get('wpm', DEFAULT_WPM)
 
