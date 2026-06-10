@@ -26,6 +26,12 @@ from utils.document_grounding import (
     select_relevant_chunks_with_metadata,
     validate_extracted_text,
 )
+from modules.module_library import (
+    DOMAIN_QUERIES,
+    _clean_extracted_text,
+    _download_and_extract,
+    _search_un_api,
+)
 
 module_a_bp = Blueprint('module_a', __name__)
 
@@ -42,11 +48,6 @@ MODE_INSTRUCTIONS = {
     'consecutive': 'Natural spoken style with logical pauses every 2-3 sentences.',
     'simultaneous': 'Fast, dense delivery. Short sentences. High information density.',
 }
-
-
-def build_prompt(params: dict) -> str:
-    topic = params.get('topic', '').strip()
-    return build_structured_material_prompt(params, topic=topic)
 
 
 def build_structured_material_prompt(params: dict, topic: str, excerpts: list[str] | None = None) -> str:
@@ -284,7 +285,10 @@ def parse_generation_output(raw_output: str, language: str = 'ar') -> dict:
         mcqs.append({
             'question': clean(item.get('question', '')),
             'options':  [clean(opt) for opt in (item.get('options') or [])],
-            'answer':   clean(item.get('answer', '')),
+            # Answer is a short option label/letter (e.g. "A" or "32") — never
+            # run it through the Arabic-only filter, which would strip Latin
+            # letters used as MCQ choice labels.
+            'answer':   str(item.get('answer', '')).strip(),
         })
 
     return {
@@ -570,6 +574,81 @@ def build_generation_response(generated: dict, params: dict, mode: str = 'genera
     return response
 
 
+def _build_un_search_queries(params: dict) -> list[str]:
+    """Build a list of progressively broader UN Digital Library search queries."""
+    topic = str(params.get('topic', '')).strip()
+    domain = params.get('domain', '')
+    domain_keywords = DOMAIN_QUERIES.get(domain, '')
+
+    queries = []
+    if topic:
+        queries.append(topic)
+        if domain_keywords:
+            queries.append(f'{topic} {domain_keywords}')
+    if domain_keywords:
+        queries.append(domain_keywords)
+    if topic:
+        # Broaden further: keep only the longer/significant words from the topic
+        words = [w for w in re.split(r'\s+', topic) if len(w) > 3]
+        if words and ' '.join(words[:3]) not in queries:
+            queries.append(' '.join(words[:3]))
+
+    # De-duplicate while preserving order
+    seen = set()
+    unique_queries = []
+    for query in queries:
+        key = query.lower().strip()
+        if key and key not in seen:
+            seen.add(key)
+            unique_queries.append(query)
+    return unique_queries
+
+
+def find_un_grounding_source(params: dict) -> dict | None:
+    """
+    Automatically search the UN Digital Library for a real document related to
+    the requested topic/domain, trying progressively broader queries until a
+    document with extractable text is found.
+
+    English-language documents are searched first because they extract far
+    more reliably from PDF (older Arabic UN PDFs often use custom CID fonts
+    that decode to mojibake) — the LLM uses the extracted facts/figures as
+    grounding regardless of the speech's output language.
+    """
+    queries = _build_un_search_queries(params)
+
+    for query in queries:
+        for un_lang in ('eng', 'fre'):
+            try:
+                results = _search_un_api(query, un_lang, 5)
+            except Exception:
+                results = []
+
+            for result in results[:3]:
+                pdf_url = result.get('pdf_url')
+                if not pdf_url:
+                    continue
+                try:
+                    text = _clean_extracted_text(_download_and_extract(pdf_url))
+                except Exception:
+                    continue
+
+                if len(text.split()) < 80:
+                    continue
+
+                return {
+                    'text':    text,
+                    'title':   result.get('title', ''),
+                    'un_id':   result.get('un_id', ''),
+                    'web_url': result.get('web_url', ''),
+                    'pdf_url': pdf_url,
+                    'date':    result.get('date', ''),
+                    'query':   query,
+                }
+
+    return None
+
+
 @module_a_bp.route('/generate', methods=['POST'])
 def generate_speech():
     params = request.get_json()
@@ -581,7 +660,18 @@ def generate_speech():
         return jsonify(validation_error), status
 
     try:
-        prompt = build_prompt(params)
+        # Always ground generation in a real UN Digital Library document
+        # related to the topic/domain — try progressively broader queries
+        # until one yields usable text.
+        source = find_un_grounding_source(params)
+        excerpts = None
+        if source:
+            normalized_text = normalize_text(source['text'])
+            chunks = chunk_text(normalized_text)
+            excerpts = select_relevant_chunks(chunks, params)
+
+        topic = params.get('topic', '').strip()
+        prompt = build_structured_material_prompt(params, topic=topic, excerpts=excerpts)
         word_count_val = params.get('word_count', 250)
         # Scale max_tokens: speech tokens ≈ 1.5× word count for Arabic, plus ~800 for MCQ+glossary JSON
         max_tok = min(6000, max(2800, int(word_count_val * 2) + 1200))
@@ -602,7 +692,21 @@ def generate_speech():
             temperature=0.7,
         )
         generated = parse_generation_output(raw_output, language=params.get('language', 'ar'))
-        return jsonify(build_generation_response(generated, params))
+
+        extra = None
+        mode = 'generated'
+        if source:
+            mode = 'un_library_grounded'
+            extra = {
+                'source_speech': {
+                    'title':   source['title'],
+                    'un_id':   source['un_id'],
+                    'web_url': source['web_url'],
+                    'date':    source['date'],
+                },
+            }
+
+        return jsonify(build_generation_response(generated, params, mode=mode, extra=extra))
 
     except Exception as exc:
         return jsonify({'error': str(exc)}), 500
