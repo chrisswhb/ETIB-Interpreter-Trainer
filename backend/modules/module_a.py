@@ -13,12 +13,14 @@ Endpoints:
   POST /api/module-a/from-document  — generate a speech from uploaded document (TODO)
 """
 import os
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, current_app, request, jsonify
 from groq import Groq
 from werkzeug.utils import secure_filename
 from config import GROQ_API_KEY, PRIMARY_LLM_MODEL, DEFAULT_WPM
 from utils.document_grounding import (
     DEFAULT_CHUNK_CHARACTERS,
+    DEFAULT_MAX_EXCERPT_CHARACTERS,
+    DEFAULT_MAX_EXCERPTS,
     DocumentGroundingError,
     extract_document_text,
     format_excerpts_for_prompt,
@@ -29,6 +31,10 @@ from utils.document_grounding import (
     select_relevant_chunks,
     select_relevant_chunks_with_metadata,
     validate_extracted_text,
+)
+from utils.embedding_retrieval import (
+    KEYWORD_FALLBACK_RETRIEVAL_METHOD,
+    select_production_relevant_chunks,
 )
 
 module_a_bp = Blueprint('module_a', __name__)
@@ -376,21 +382,33 @@ def retrieve_document_context():
             'document_errors': document_errors
         }), 400
 
-    selected_chunks = select_relevant_chunks_with_metadata(
+    selected_chunks = select_production_relevant_chunks(
         chunk_records,
         params,
         max_excerpts=max_chunks,
         max_total_characters=max_chunks * DEFAULT_CHUNK_CHARACTERS,
+        logger=current_app.logger,
+    )
+    fallback_used = any(
+        chunk.get('retrieval_method') == KEYWORD_FALLBACK_RETRIEVAL_METHOD
+        for chunk in selected_chunks
     )
 
-    return jsonify({
+    response_payload = {
         'mode': 'retrieval_only',
         'query_used': params.get('query', ''),
         'selected_chunks': selected_chunks,
         'documents_processed': documents_processed,
         'document_errors': document_errors,
         'selected_chunk_count': len(selected_chunks)
-    })
+    }
+    if fallback_used:
+        response_payload['fallback_used'] = True
+        response_payload['retrieval_warning'] = (
+            'Dense retrieval was unavailable; keyword metadata fallback was used.'
+        )
+
+    return jsonify(response_payload)
 
 
 @module_a_bp.route('/from-document', methods=['POST'])
@@ -420,7 +438,28 @@ def generate_from_document():
         validate_extracted_text(normalized_text)
 
         chunks = chunk_text(normalized_text)
-        selected_chunks = select_relevant_chunks(chunks, params)
+        chunk_records = [
+            {
+                'text': chunk,
+                'source_filename': safe_source_filename,
+                'source_type': source_type,
+                'chunk_index': chunk_index,
+                'source_order': 0,
+            }
+            for chunk_index, chunk in enumerate(chunks)
+        ]
+        selected_chunk_records = select_production_relevant_chunks(
+            chunk_records,
+            params,
+            max_excerpts=DEFAULT_MAX_EXCERPTS,
+            max_total_characters=DEFAULT_MAX_EXCERPT_CHARACTERS,
+            logger=current_app.logger,
+        )
+        selected_chunks = [chunk.get('text', '') for chunk in selected_chunk_records]
+        fallback_used = any(
+            chunk.get('retrieval_method') == KEYWORD_FALLBACK_RETRIEVAL_METHOD
+            for chunk in selected_chunk_records
+        )
         prompt = build_document_grounded_prompt(params, selected_chunks)
 
         response = get_groq_client().chat.completions.create(
@@ -444,7 +483,7 @@ def generate_from_document():
         word_count = len(script.split())
         wpm = params.get('wpm', DEFAULT_WPM)
 
-        return jsonify({
+        response_payload = {
             'script': script,
             'word_count': word_count,
             'estimated_duration_seconds': round((word_count / wpm) * 60),
@@ -456,7 +495,14 @@ def generate_from_document():
             'source_type': source_type.lstrip('.'),
             'extracted_characters': len(normalized_text),
             'selected_excerpt_count': len(selected_chunks)
-        })
+        }
+        if fallback_used:
+            response_payload['fallback_used'] = True
+            response_payload['retrieval_warning'] = (
+                'Dense retrieval was unavailable; keyword metadata fallback was used.'
+            )
+
+        return jsonify(response_payload)
 
     except DocumentGroundingError as e:
         return jsonify({'error': str(e)}), 400

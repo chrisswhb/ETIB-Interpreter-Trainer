@@ -1,18 +1,20 @@
 """
-Optional dense embedding retrieval helpers for offline evaluation only.
+Dense embedding retrieval helpers for Module A production RAG and evaluation.
 
-This module intentionally does not integrate with Flask routes or any vector
-database. sentence-transformers is imported lazily so lexical evaluators keep
-working when dense dependencies or model files are unavailable.
+This module intentionally avoids any vector database. sentence-transformers is
+imported lazily so evaluators and Flask startup keep working when optional dense
+dependencies or model files are unavailable.
 """
 from __future__ import annotations
 
 from functools import lru_cache
 from importlib.util import find_spec
+import logging
 from math import sqrt
 
 
 DENSE_RETRIEVAL_METHOD = 'dense_multilingual_embedding'
+KEYWORD_FALLBACK_RETRIEVAL_METHOD = 'keyword_metadata_fallback'
 HYBRID_RETRIEVAL_METHOD = 'hybrid_bm25_dense'
 DEFAULT_DENSE_MODEL_NAME = 'paraphrase-multilingual-MiniLM-L12-v2'
 DEFAULT_HYBRID_BM25_WEIGHT = 0.5
@@ -30,6 +32,41 @@ class DenseEmbeddingUnavailable(RuntimeError):
 def is_dense_embedding_available() -> bool:
     """Return True when sentence-transformers can be imported."""
     return find_spec('sentence_transformers') is not None
+
+
+def select_production_relevant_chunks(
+    chunk_records: list[dict],
+    params: dict,
+    max_excerpts: int,
+    max_total_characters: int,
+    logger=None,
+) -> list[dict]:
+    """Select production RAG chunks with dense retrieval and hidden keyword fallback."""
+    try:
+        return select_relevant_chunks_dense_with_metadata(
+            chunk_records,
+            params,
+            max_excerpts=max_excerpts,
+            max_total_characters=max_total_characters,
+        )
+    except Exception as exc:
+        active_logger = logger or logging.getLogger(__name__)
+        active_logger.warning(
+            'Dense multilingual retrieval failed; using hidden keyword metadata fallback.',
+            exc_info=True,
+        )
+
+        from utils.document_grounding import select_relevant_chunks_with_metadata
+
+        fallback_chunks = select_relevant_chunks_with_metadata(
+            chunk_records,
+            params,
+            max_excerpts=max_excerpts,
+            max_total_characters=max_total_characters,
+        )
+        for chunk in fallback_chunks:
+            chunk['retrieval_method'] = KEYWORD_FALLBACK_RETRIEVAL_METHOD
+        return fallback_chunks
 
 
 def select_relevant_chunks_dense_with_metadata(

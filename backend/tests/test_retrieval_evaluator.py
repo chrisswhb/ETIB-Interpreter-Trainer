@@ -41,7 +41,21 @@ def test_retrieval_evaluator_metrics_shape():
     assert report['per_case_results']
 
 
-def test_retrieval_evaluator_runs_all_methods():
+def test_retrieval_evaluator_runs_all_methods(monkeypatch):
+    import scripts.evaluate_retrieval as evaluator
+
+    monkeypatch.setitem(
+        evaluator.METHODS[DENSE_METHOD_NAME],
+        'availability_check',
+        lambda: False,
+    )
+    for method_name in HYBRID_WEIGHT_CONFIGS:
+        monkeypatch.setitem(
+            evaluator.METHODS[method_name],
+            'availability_check',
+            lambda: False,
+        )
+
     reports = run_all_evaluations(write_output=False)
     by_method = {report['method_name']: report for report in reports}
 
