@@ -1,0 +1,4 @@
+# Optional dependencies for dense multilingual RAG retrieval.
+# Not required for Flask startup or the normal backend install; production uses
+# a hidden keyword fallback if these dependencies or model files are unavailable.
+sentence-transformers==3.0.1

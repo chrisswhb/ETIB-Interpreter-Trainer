@@ -8,13 +8,15 @@ import ast
 import json
 import re
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from werkzeug.utils import secure_filename
 
 from config import DEFAULT_WORD_COUNT, DEFAULT_WPM
 from services.llm_service import generate_text
 from utils.document_grounding import (
     DEFAULT_CHUNK_CHARACTERS,
+    DEFAULT_MAX_EXCERPT_CHARACTERS,
+    DEFAULT_MAX_EXCERPTS,
     DocumentGroundingError,
     chunk_text,
     extract_document_text,
@@ -22,9 +24,11 @@ from utils.document_grounding import (
     get_source_type,
     is_supported_document,
     normalize_text,
-    select_relevant_chunks,
-    select_relevant_chunks_with_metadata,
     validate_extracted_text,
+)
+from utils.embedding_retrieval import (
+    KEYWORD_FALLBACK_RETRIEVAL_METHOD,
+    select_production_relevant_chunks,
 )
 from modules.module_library import (
     DOMAIN_QUERIES,
@@ -539,6 +543,47 @@ def uploaded_document_files(files) -> list:
     return [file for file in uploaded_files if file and file.filename]
 
 
+def build_chunk_records(
+    chunks: list[str],
+    source_filename: str,
+    source_type: str,
+    source_order: int = 0,
+) -> list[dict]:
+    """Attach source metadata to chunks before production retrieval ranking."""
+    return [
+        {
+            'text': chunk,
+            'source_filename': source_filename,
+            'source_type': source_type,
+            'chunk_index': chunk_index,
+            'source_order': source_order,
+        }
+        for chunk_index, chunk in enumerate(chunks)
+    ]
+
+
+def selected_chunk_texts(selected_chunks: list[dict]) -> list[str]:
+    """Return selected text excerpts for the existing prompt builders."""
+    return [chunk.get('text', '') for chunk in selected_chunks]
+
+
+def dense_fallback_used(selected_chunks: list[dict]) -> bool:
+    """Return True when production dense retrieval had to use hidden fallback."""
+    return any(
+        chunk.get('retrieval_method') == KEYWORD_FALLBACK_RETRIEVAL_METHOD
+        for chunk in selected_chunks
+    )
+
+
+def dense_fallback_response_fields() -> dict:
+    return {
+        'fallback_used': True,
+        'retrieval_warning': (
+            'Dense retrieval was unavailable; keyword metadata fallback was used.'
+        ),
+    }
+
+
 def _expand_script_to_word_count(script: str, target_word_count: int, language: str) -> str:
     """If the script falls noticeably short of the requested word count, ask
     the LLM to expand it (preserving wording/facts) until it gets closer."""
@@ -713,7 +758,20 @@ def generate_speech():
         if source:
             normalized_text = normalize_text(source['text'])
             chunks = chunk_text(normalized_text)
-            excerpts = select_relevant_chunks(chunks, params)
+            source_filename = source.get('title') or source.get('un_id') or 'un_library_source'
+            chunk_records = build_chunk_records(
+                chunks,
+                source_filename=source_filename,
+                source_type='un_library',
+            )
+            selected_chunk_records = select_production_relevant_chunks(
+                chunk_records,
+                params,
+                max_excerpts=DEFAULT_MAX_EXCERPTS,
+                max_total_characters=DEFAULT_MAX_EXCERPT_CHARACTERS,
+                logger=current_app.logger,
+            )
+            excerpts = selected_chunk_texts(selected_chunk_records)
 
         topic = params.get('topic', '').strip()
         prompt = build_structured_material_prompt(params, topic=topic, excerpts=excerpts)
@@ -808,21 +866,27 @@ def retrieve_document_context():
             'document_errors': document_errors,
         }), 400
 
-    selected_chunks = select_relevant_chunks_with_metadata(
+    selected_chunks = select_production_relevant_chunks(
         chunk_records,
         params,
         max_excerpts=max_chunks,
         max_total_characters=max_chunks * DEFAULT_CHUNK_CHARACTERS,
+        logger=current_app.logger,
     )
+    fallback_used = dense_fallback_used(selected_chunks)
 
-    return jsonify({
+    response_payload = {
         'mode': 'retrieval_only',
         'query_used': params.get('query', ''),
         'selected_chunks': selected_chunks,
         'documents_processed': documents_processed,
         'document_errors': document_errors,
         'selected_chunk_count': len(selected_chunks),
-    })
+    }
+    if fallback_used:
+        response_payload.update(dense_fallback_response_fields())
+
+    return jsonify(response_payload)
 
 
 @module_a_bp.route('/from-document', methods=['POST'])
@@ -853,7 +917,20 @@ def generate_from_document():
         validate_extracted_text(normalized_text)
 
         chunks = chunk_text(normalized_text)
-        selected_chunks = select_relevant_chunks(chunks, params)
+        chunk_records = build_chunk_records(
+            chunks,
+            source_filename=safe_source_filename,
+            source_type=source_type,
+        )
+        selected_chunk_records = select_production_relevant_chunks(
+            chunk_records,
+            params,
+            max_excerpts=DEFAULT_MAX_EXCERPTS,
+            max_total_characters=DEFAULT_MAX_EXCERPT_CHARACTERS,
+            logger=current_app.logger,
+        )
+        selected_chunks = selected_chunk_texts(selected_chunk_records)
+        fallback_used = dense_fallback_used(selected_chunk_records)
         topic = params.get('topic') or f'Document-grounded speech from {safe_source_filename}'
         params['topic'] = topic
         prompt = build_structured_material_prompt(params, topic=topic, excerpts=selected_chunks)
@@ -878,16 +955,20 @@ def generate_from_document():
         )
 
         generated = parse_generation_output(raw_output, language=params.get('language', 'ar'))
+        extra = {
+            'source_filename': safe_source_filename,
+            'source_type': source_type.lstrip('.'),
+            'extracted_characters': len(normalized_text),
+            'selected_excerpt_count': len(selected_chunks),
+        }
+        if fallback_used:
+            extra.update(dense_fallback_response_fields())
+
         return jsonify(build_generation_response(
             generated,
             params,
             mode='document_grounded',
-            extra={
-                'source_filename': safe_source_filename,
-                'source_type': source_type.lstrip('.'),
-                'extracted_characters': len(normalized_text),
-                'selected_excerpt_count': len(selected_chunks),
-            },
+            extra=extra,
         ))
 
     except DocumentGroundingError as exc:
