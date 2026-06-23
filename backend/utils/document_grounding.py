@@ -6,7 +6,10 @@ keyword overlap scoring.
 """
 import os
 import re
+import unicodedata
+from collections import Counter
 from io import BytesIO
+from math import log
 
 
 SUPPORTED_DOCUMENT_EXTENSIONS = {'.txt', '.docx', '.pdf'}
@@ -16,6 +19,15 @@ DEFAULT_CHUNK_OVERLAP = 250
 DEFAULT_MAX_EXCERPTS = 4
 DEFAULT_MAX_EXCERPT_CHARACTERS = 6500
 RETRIEVAL_METHOD = 'keyword_overlap'
+BM25_RETRIEVAL_METHOD = 'bm25'
+ARABIC_LETTER_NORMALIZATION = str.maketrans({
+    'أ': 'ا',
+    'إ': 'ا',
+    'آ': 'ا',
+    'ٱ': 'ا',
+    'ى': 'ي',
+})
+TOKEN_PATTERN = re.compile(r'\d+(?:[.,]\d+)?%?|\w+', flags=re.UNICODE)
 
 
 class DocumentGroundingError(ValueError):
@@ -206,6 +218,110 @@ def select_relevant_chunks_with_metadata(
     return selected
 
 
+def score_chunks_bm25(
+    chunk_records: list[dict],
+    params: dict,
+    k1: float = 1.5,
+    b: float = 0.75,
+) -> list[dict]:
+    """Score chunk records with lightweight BM25 using normalized tokens."""
+    if not chunk_records:
+        return []
+
+    query_tokens = _tokenize_sequence(str(params.get('query') or ''))
+    metadata_tokens = sorted(_metadata_terms(params))
+    weighted_query_tokens = query_tokens * 3 + metadata_tokens
+    query_terms = set(weighted_query_tokens)
+
+    document_tokens = [
+        _tokenize_sequence(record.get('text', ''))
+        for record in chunk_records
+    ]
+    document_lengths = [len(tokens) for tokens in document_tokens]
+    average_length = (
+        sum(document_lengths) / len(document_lengths)
+        if document_lengths else 0
+    )
+
+    document_frequency = Counter()
+    for tokens in document_tokens:
+        document_frequency.update(set(tokens))
+
+    total_documents = len(chunk_records)
+    scored_chunks = []
+
+    for record, tokens, document_length in zip(
+        chunk_records, document_tokens, document_lengths
+    ):
+        term_frequency = Counter(tokens)
+        score = 0.0
+
+        for term in query_terms:
+            frequency = term_frequency.get(term, 0)
+            if frequency == 0:
+                continue
+
+            frequency_in_query = weighted_query_tokens.count(term)
+            df = document_frequency.get(term, 0)
+            idf = log(1 + (total_documents - df + 0.5) / (df + 0.5))
+            denominator = frequency + k1 * (
+                1 - b + b * (document_length / average_length)
+            ) if average_length else frequency + k1
+            score += frequency_in_query * idf * (
+                frequency * (k1 + 1) / denominator
+            )
+
+        text = record.get('text', '')
+        if params.get('number_density') == 'high':
+            score += min(2.5, len(re.findall(r'\d+', text)) * 0.25)
+        elif params.get('number_density') == 'medium':
+            score += min(1.5, len(re.findall(r'\d+', text)) * 0.15)
+
+        scored_record = dict(record)
+        scored_record['score'] = score
+        scored_record['retrieval_method'] = BM25_RETRIEVAL_METHOD
+        scored_chunks.append(scored_record)
+
+    return scored_chunks
+
+
+def select_relevant_chunks_bm25_with_metadata(
+    chunk_records: list[dict],
+    params: dict,
+    max_excerpts: int = DEFAULT_MAX_EXCERPTS,
+    max_total_characters: int = DEFAULT_MAX_EXCERPT_CHARACTERS,
+) -> list[dict]:
+    """Select relevant chunk records with BM25 while preserving metadata."""
+    scored_chunks = score_chunks_bm25(chunk_records, params)
+    scored_chunks.sort(key=lambda item: (
+        -item.get('score', 0),
+        item.get('source_order', 0),
+        item.get('chunk_index', 0)
+    ))
+
+    selected = []
+    total_chars = 0
+    for chunk in scored_chunks:
+        if len(selected) >= max_excerpts:
+            break
+
+        text_length = len(chunk.get('text', ''))
+        if total_chars and total_chars + text_length > max_total_characters:
+            continue
+
+        selected.append({
+            'text': chunk.get('text', ''),
+            'source_filename': chunk.get('source_filename'),
+            'source_type': chunk.get('source_type'),
+            'chunk_index': chunk.get('chunk_index', 0),
+            'score': chunk.get('score', 0),
+            'retrieval_method': chunk.get('retrieval_method', BM25_RETRIEVAL_METHOD),
+        })
+        total_chars += text_length
+
+    return selected
+
+
 def format_excerpts_for_prompt(excerpts: list[str]) -> str:
     """Format selected excerpts for the LLM prompt."""
     return '\n\n'.join(
@@ -295,4 +411,21 @@ def _metadata_terms(params: dict) -> set[str]:
 
 
 def _tokenize(text: str) -> set[str]:
-    return {token.lower() for token in re.findall(r'\w+', text or '', flags=re.UNICODE)}
+    return set(_tokenize_sequence(text))
+
+
+def _tokenize_sequence(text: str) -> list[str]:
+    normalized = _normalize_for_matching(text)
+    return [token for token in TOKEN_PATTERN.findall(normalized) if token]
+
+
+def _normalize_for_matching(text: str) -> str:
+    """Normalize text for deterministic multilingual token matching."""
+    text = (text or '').lower()
+    text = text.translate(ARABIC_LETTER_NORMALIZATION)
+    decomposed = unicodedata.normalize('NFKD', text)
+    without_marks = ''.join(
+        char for char in decomposed
+        if unicodedata.category(char) != 'Mn'
+    )
+    return unicodedata.normalize('NFKC', without_marks)

@@ -1,0 +1,252 @@
+[
+  {
+    "id": "climate_en_exact",
+    "category": "english_exact",
+    "difficulty": "easy",
+    "description": "English exact keyword retrieval for climate finance.",
+    "query": "climate finance renewable energy technology transfer",
+    "params": {
+      "language": "en",
+      "domain": "climate",
+      "scenario": "United Nations briefing",
+      "number_density": "medium"
+    },
+    "fixture_files": ["climate_en.txt"],
+    "expected_source": "climate_en.txt",
+    "expected_chunk_index": 0,
+    "expected_terms": ["climate finance", "renewable energy", "technology transfer"],
+    "expected_best_methods": ["keyword", "bm25", "hybrid"],
+    "expected_weak_methods": []
+  },
+  {
+    "id": "health_fr_accent",
+    "category": "french_accent",
+    "difficulty": "easy",
+    "description": "French retrieval should match accented text from unaccented query terms.",
+    "query": "sante prevention financement vaccination",
+    "params": {
+      "language": "fr",
+      "domain": "health",
+      "scenario": "Organisation mondiale de la Sante"
+    },
+    "fixture_files": ["health_fr.txt"],
+    "expected_source": "health_fr.txt",
+    "expected_chunk_index": 0,
+    "expected_terms": ["santé", "prévention", "financement", "vaccination"],
+    "expected_best_methods": ["keyword", "bm25", "hybrid"],
+    "expected_weak_methods": []
+  },
+  {
+    "id": "diplomacy_ar_normalization",
+    "category": "arabic_normalization",
+    "difficulty": "easy",
+    "description": "Arabic retrieval should match alef and diacritic variants.",
+    "query": "الامن الغذائي الجامعة العربية التعاون الاقليمي",
+    "params": {
+      "language": "ar",
+      "domain": "diplomacy",
+      "scenario": "Arab League summit"
+    },
+    "fixture_files": ["diplomacy_ar.txt"],
+    "expected_source": "diplomacy_ar.txt",
+    "expected_chunk_index": 0,
+    "expected_terms": ["الأَمْن الغذائي", "الجامعة العربية", "التعاون الإقليمي"],
+    "expected_best_methods": ["keyword", "bm25", "hybrid"],
+    "expected_weak_methods": []
+  },
+  {
+    "id": "numbers_names_exact",
+    "category": "numbers_names",
+    "difficulty": "easy",
+    "description": "Numeric retrieval should preserve dates, decimals, percentages, and institution names.",
+    "query": "World Bank United Nations 42 2026 18% 1.8",
+    "params": {
+      "language": "en",
+      "domain": "finance",
+      "number_density": "high"
+    },
+    "fixture_files": ["numbers_names_en.txt"],
+    "expected_source": "numbers_names_en.txt",
+    "expected_chunk_index": 0,
+    "expected_terms": ["World Bank", "United Nations", "42", "2026", "18%", "1.8"],
+    "expected_best_methods": ["keyword", "bm25", "hybrid"],
+    "expected_weak_methods": []
+  },
+  {
+    "id": "noisy_vs_precise_climate_terms",
+    "category": "noisy_ranking",
+    "difficulty": "medium",
+    "description": "A noisy chunk repeats common climate terms, but the correct chunk contains precise rare phrases.",
+    "query": "climate finance renewable energy loss and damage technology transfer mechanism",
+    "params": {
+      "language": "en",
+      "domain": "climate",
+      "scenario": "policy briefing",
+      "number_density": "low"
+    },
+    "fixture_files": ["noisy_ranking_en.txt"],
+    "expected_source": "noisy_ranking_en.txt",
+    "expected_chunk_index": 1,
+    "expected_terms": ["loss and damage", "technology transfer", "climate finance mechanism"],
+    "expected_best_methods": ["bm25", "hybrid"],
+    "expected_weak_methods": ["keyword"]
+  },
+  {
+    "id": "rare_terminology_climate_policy",
+    "category": "rare_terminology",
+    "difficulty": "medium",
+    "description": "Rare policy terminology should influence retrieval more than repeated broad climate words.",
+    "query": "technology transfer loss and damage climate finance mechanism vulnerable states",
+    "params": {
+      "language": "en",
+      "domain": "climate",
+      "scenario": "loss and damage mechanism"
+    },
+    "fixture_files": ["noisy_ranking_en.txt"],
+    "expected_source": "noisy_ranking_en.txt",
+    "expected_chunk_index": 1,
+    "expected_terms": ["technology transfer", "loss and damage", "climate finance mechanism"],
+    "expected_best_methods": ["bm25", "hybrid"],
+    "expected_weak_methods": []
+  },
+  {
+    "id": "rare_terminology_food_security",
+    "category": "rare_terminology",
+    "difficulty": "medium",
+    "description": "Diplomacy terms should retrieve the chunk with food security and regional cooperation.",
+    "query": "food security regional cooperation negotiations sustainable development",
+    "params": {
+      "language": "en",
+      "domain": "diplomacy",
+      "scenario": "regional summit"
+    },
+    "fixture_files": ["cross_language_mix.txt"],
+    "expected_source": "cross_language_mix.txt",
+    "expected_chunk_index": 2,
+    "expected_terms": ["الأمن الغذائي", "التعاون الإقليمي", "التنمية المستدامة"],
+    "expected_best_methods": ["dense_embedding", "hybrid"],
+    "expected_weak_methods": ["keyword", "bm25"]
+  },
+  {
+    "id": "hard_numbers_names_precision",
+    "category": "numbers_names",
+    "difficulty": "medium",
+    "description": "The correct chunk should contain the exact number, date, percentage, and institution combination.",
+    "query": "42 delegates 18% 2026 World Health Organization Arab League 1.8 billion",
+    "params": {
+      "language": "en",
+      "domain": "health diplomacy",
+      "number_density": "high"
+    },
+    "fixture_files": ["noisy_ranking_en.txt"],
+    "expected_source": "noisy_ranking_en.txt",
+    "expected_chunk_index": 2,
+    "expected_terms": ["42 delegates", "18%", "2026", "World Health Organization", "Arab League", "1.8 billion"],
+    "expected_best_methods": ["keyword", "bm25", "hybrid"],
+    "expected_weak_methods": []
+  },
+  {
+    "id": "semantic_clean_energy_paraphrase",
+    "category": "semantic_paraphrase",
+    "difficulty": "hard",
+    "description": "The query uses everyday paraphrase wording for a policy sentence about climate finance and renewable transition.",
+    "query": "financial help for poorer countries to adopt clean energy",
+    "params": {
+      "language": "en",
+      "domain": "climate"
+    },
+    "fixture_files": ["noisy_ranking_en.txt"],
+    "expected_source": "noisy_ranking_en.txt",
+    "expected_chunk_index": 3,
+    "expected_terms": ["climate finance supports developing countries", "renewable energy transition"],
+    "expected_best_methods": ["dense_embedding", "hybrid"],
+    "expected_weak_methods": ["keyword", "bm25"]
+  },
+  {
+    "id": "cross_language_en_to_fr_health",
+    "category": "cross_language",
+    "difficulty": "hard",
+    "description": "English query should retrieve a French health-system chunk.",
+    "query": "vaccination prevention health systems funding vulnerable populations",
+    "params": {
+      "language": "en",
+      "domain": "health"
+    },
+    "fixture_files": ["cross_language_mix.txt"],
+    "expected_source": "cross_language_mix.txt",
+    "expected_chunk_index": 1,
+    "expected_terms": ["vaccination", "prévention", "financement", "systèmes de santé"],
+    "expected_best_methods": ["dense_embedding", "hybrid"],
+    "expected_weak_methods": ["keyword", "bm25"]
+  },
+  {
+    "id": "cross_language_fr_to_ar_diplomacy",
+    "category": "cross_language",
+    "difficulty": "hard",
+    "description": "French query should retrieve an Arabic diplomacy chunk.",
+    "query": "coopération régionale sécurité alimentaire négociations développement durable",
+    "params": {
+      "language": "fr",
+      "domain": "diplomacy"
+    },
+    "fixture_files": ["cross_language_mix.txt"],
+    "expected_source": "cross_language_mix.txt",
+    "expected_chunk_index": 2,
+    "expected_terms": ["الأمن الغذائي", "التعاون الإقليمي", "المفاوضات", "التنمية المستدامة"],
+    "expected_best_methods": ["dense_embedding", "hybrid"],
+    "expected_weak_methods": ["keyword", "bm25"]
+  },
+  {
+    "id": "cross_language_ar_to_en_climate",
+    "category": "cross_language",
+    "difficulty": "hard",
+    "description": "Arabic query should retrieve an English climate-finance chunk.",
+    "query": "تمويل المناخ الدول النامية الطاقة المتجددة",
+    "params": {
+      "language": "ar",
+      "domain": "climate"
+    },
+    "fixture_files": ["cross_language_mix.txt"],
+    "expected_source": "cross_language_mix.txt",
+    "expected_chunk_index": 3,
+    "expected_terms": ["Climate finance", "developing countries", "renewable energy transition"],
+    "expected_best_methods": ["dense_embedding", "hybrid"],
+    "expected_weak_methods": ["keyword", "bm25"]
+  },
+  {
+    "id": "graph_relation_indirect_support",
+    "category": "graph_relation_placeholder",
+    "difficulty": "hard",
+    "description": "Relation-style query asks for the organization connected to a region through a program.",
+    "query": "Which organization supports Coastal Region C through the Blue Harbor Program?",
+    "params": {
+      "language": "en",
+      "domain": "diplomacy health",
+      "scenario": "relation question"
+    },
+    "fixture_files": ["graph_relations_en.txt"],
+    "expected_source": "graph_relations_en.txt",
+    "expected_chunk_index": 0,
+    "expected_terms": ["Meridian Foundation"],
+    "expected_best_methods": ["graphrag", "hybrid"],
+    "expected_weak_methods": ["keyword", "bm25"]
+  },
+  {
+    "id": "graph_relation_disambiguation",
+    "category": "graph_relation_placeholder",
+    "difficulty": "hard",
+    "description": "Relation-style query requires distinguishing two organization-program-region chains.",
+    "query": "Which council is connected to Mountain Region D through Green Valley Program?",
+    "params": {
+      "language": "en",
+      "domain": "regional programs",
+      "scenario": "relation question"
+    },
+    "fixture_files": ["graph_relations_en.txt"],
+    "expected_source": "graph_relations_en.txt",
+    "expected_chunk_index": 1,
+    "expected_terms": ["Atlas Council"],
+    "expected_best_methods": ["graphrag", "hybrid"],
+    "expected_weak_methods": ["keyword", "bm25"]
+  }
+]

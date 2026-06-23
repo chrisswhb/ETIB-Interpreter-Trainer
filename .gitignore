@@ -22,11 +22,13 @@ uploads/
 *.wav
 *.m4a
 *.ogg
+backend/reports/rag_results/*.json
+!backend/reports/rag_results/.gitkeep
 
 # Whisper model cache (downloaded at runtime, ~1.5GB)
 model_cache/
 
-# Local LLM weights (download manually; do not commit multi-GB files)
+# Local LLM and embedding model weights (download manually; do not commit multi-GB files)
 models/
 
 # OS
