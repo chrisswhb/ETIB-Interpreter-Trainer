@@ -128,15 +128,54 @@ Case-level dense coverage:
 - The exact weakness Phase 2 exposed is independent chunk ranking that can retrieve relevant individual facts without covering every required document in a long multi-hop relation chain.
 - LightRAG or GraphRAG is justified for testing next because graph-style methods may improve required-source coverage and relation-chain completeness on broad multi-document speech-generation requests.
 
+### LightRAG-Style Offline Comparison
+
+`lightrag_relation_graph` is an offline-only local prototype. It does not use
+the official LightRAG package, does not call an LLM, does not use a vector
+database, and is not integrated into any Flask endpoint. It builds a small
+in-memory graph from deterministic concept, entity, relation-cue, chunk, and
+document links, then selects diverse relation evidence for the Phase 2 cases.
+
+| Method | Multi-doc Recall@3 | Required-source coverage | Relation-term hit rate | Relation-chain coverage | Avg distinct docs@3 | Avg latency | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `dense_multilingual_embedding` | 0.80 | 0.87 | 0.96 | 0.92 | 3.00 | 138.30 ms warmed validation run | current production winner |
+| `lightrag_relation_graph` | 0.80 | 0.93 | 0.92 | 0.92 | 3.00 | 3.46 ms warmed validation run | experimental |
+| `GraphRAG` | pending | pending | pending | pending | pending | pending | not implemented |
+
+Latency note: the comparison uses warm retrieval latency in the same local
+evaluation environment. Dense timing excludes the initial one-time embedding
+model load after warm-up, but includes fixture loading, chunking, embedding, and
+ranking for each case. LightRAG-style timing includes fixture loading, chunking,
+in-memory graph construction, graph expansion, scoring, and final evidence
+selection for each case. Earlier warmed comparison runs measured dense at
+457.00 ms and LightRAG-style at 10.60 ms, so these small-corpus latency values
+should be treated as local timing observations rather than deployment guarantees.
+
+Case-level comparison:
+
+- `climate_food_migration_chain`: LightRAG tied dense on coverage and retrieved the required climate and food-security documents.
+- `displacement_health_service_chain`: LightRAG tied dense.
+- `funding_health_food_security`: LightRAG tied dense.
+- `regional_cooperation_support_chain`: LightRAG tied dense.
+- `full_humanitarian_speech_evidence`: LightRAG improved required-source coverage from 0.33 to 0.67 by retrieving `health_displacement.txt`, but it still partially failed and did not recover `climate_agriculture.txt`. Relation-term hit rate dropped from 0.80 to 0.60 on this case.
+
+Interpretation:
+
+- LightRAG-style retrieval improved source coverage on the broadest synthesis case.
+- LightRAG-style retrieval did not beat dense overall because relation-term hit rate was lower.
+- Dense remains the current production winner.
+- The LightRAG-style result is promising enough to justify further relation-graph experiments, but not strong enough to replace dense production retrieval.
+- GraphRAG is still not implemented or measured.
+
 ## Future Comparison Placeholder
 
 | Method | Phase 1 general retrieval | Phase 2 relation retrieval | Required-source coverage | Relation-chain coverage | Latency | Status |
 | --- | --- | --- | --- | --- | --- | --- |
 | Sparse / RAG-lite | measured | not yet tested on Phase 2 | pending | pending | measured | completed |
 | BM25 | measured | not yet tested on Phase 2 | pending | pending | measured | completed |
-| Dense multilingual | measured | measured | 0.87 | 0.92 | 1736.45 ms on Phase 2 run | current production winner |
+| Dense multilingual | measured | measured | 0.87 | 0.92 | 1736.45 ms original Phase 2 run; 138.30-457.00 ms warmed comparison runs | current production winner |
 | Hybrid BM25 + dense | measured | not yet tested on Phase 2 | pending | pending | measured for Phase 1 | completed Phase 1 only |
-| LightRAG | not implemented | pending | pending | pending | pending | future experiment |
+| LightRAG-style local graph | not tested on Phase 1 | measured | 0.93 | 0.92 | 3.46-10.60 ms on warmed Phase 2 runs | experimental offline prototype |
 | GraphRAG | not implemented | pending | pending | pending | pending | future experiment |
 
 ## What Not To Claim
@@ -145,7 +184,9 @@ Case-level dense coverage:
 - Do not claim hybrid beats dense.
 - Do not claim dense solved semantic paraphrase.
 - Do not claim dense is the final winner across all task types before Phase 2 graph comparisons are completed.
-- Do not claim GraphRAG or LightRAG was implemented.
+- Do not claim the LightRAG-style prototype beats dense overall.
+- Do not claim the official LightRAG package was implemented.
+- Do not claim GraphRAG or the official LightRAG framework was implemented.
 
 ## Next Recommended Work
 

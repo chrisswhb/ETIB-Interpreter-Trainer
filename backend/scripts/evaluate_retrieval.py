@@ -22,6 +22,7 @@ RELATION_CASES_PATH = RELATION_FIXTURE_DIR / 'relation_cases.json'
 REPORT_DIR = BACKEND_ROOT / 'reports' / 'rag_results'
 DEFAULT_OUTPUT_PATH = REPORT_DIR / 'rag_lite_baseline.json'
 PHASE2_DENSE_OUTPUT_PATH = REPORT_DIR / 'phase2_dense_multidocument_relations.json'
+PHASE2_LIGHTRAG_OUTPUT_PATH = REPORT_DIR / 'phase2_lightrag_relation_graph.json'
 
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
@@ -41,6 +42,10 @@ from utils.embedding_retrieval import (  # noqa: E402
     is_dense_embedding_available,
     select_relevant_chunks_dense_with_metadata,
     select_relevant_chunks_hybrid_with_metadata,
+)
+from utils.lightrag_retrieval import (  # noqa: E402
+    LIGHTRAG_RETRIEVAL_METHOD,
+    select_relevant_chunks_lightrag_with_metadata,
 )
 
 
@@ -128,6 +133,25 @@ PHASE2_DENSE_METHOD = {
         'Dense retrieval ranks chunks independently and does not build an explicit relation graph.',
         'A top-k result can contain relevant terms without proving a complete multi-hop relation.',
     ],
+}
+PHASE2_LIGHTRAG_METHOD = {
+    'method_name': LIGHTRAG_RETRIEVAL_METHOD,
+    'selector': select_relevant_chunks_lightrag_with_metadata,
+    'output_path': PHASE2_LIGHTRAG_OUTPUT_PATH,
+    'notes': [
+        'Phase 2 relation-heavy multi-document benchmark.',
+        'Offline LightRAG-style prototype using deterministic local graph signals.',
+        'No official LightRAG package, LLM call, vector database, or endpoint integration is used.',
+    ],
+    'known_limitations': [
+        'Entity and relation extraction are lightweight deterministic heuristics.',
+        'No learned graph embeddings, community summaries, or LLM-generated relation extraction.',
+        'GraphRAG is not implemented or tested.',
+    ],
+}
+PHASE2_METHODS = {
+    DENSE_METHOD_NAME: PHASE2_DENSE_METHOD,
+    LIGHTRAG_RETRIEVAL_METHOD: PHASE2_LIGHTRAG_METHOD,
 }
 
 
@@ -595,11 +619,12 @@ def unavailable_method_report(method_name: str, reason: str) -> dict:
     }
 
 
-def unavailable_phase2_relation_report(reason: str) -> dict:
+def unavailable_phase2_relation_report(method_name: str, reason: str) -> dict:
     cases = load_relation_cases()
+    method_config = PHASE2_METHODS[method_name]
     return {
         'benchmark_name': 'phase2_relation_heavy_multidocument',
-        'method_name': DENSE_METHOD_NAME,
+        'method_name': method_name,
         'method_available': False,
         'unavailable_reason': reason,
         'timestamp': datetime.now(timezone.utc).isoformat(),
@@ -627,8 +652,8 @@ def unavailable_phase2_relation_report(reason: str) -> dict:
             }
             for case in cases
         ],
-        'notes': PHASE2_DENSE_METHOD['notes'],
-        'known_limitations': PHASE2_DENSE_METHOD['known_limitations'],
+        'notes': method_config['notes'],
+        'known_limitations': method_config['known_limitations'],
     }
 
 
@@ -680,10 +705,18 @@ def run_evaluation(
     return report
 
 
-def run_phase2_relation_evaluation(write_output: bool = True) -> dict:
-    availability_check = PHASE2_DENSE_METHOD.get('availability_check')
+def run_phase2_relation_evaluation(
+    method_name: str = DENSE_METHOD_NAME,
+    write_output: bool = True,
+) -> dict:
+    if method_name not in PHASE2_METHODS:
+        raise ValueError(f'Unknown Phase 2 retrieval method: {method_name}')
+
+    method_config = PHASE2_METHODS[method_name]
+    availability_check = method_config.get('availability_check')
     if availability_check and not availability_check():
         return unavailable_phase2_relation_report(
+            method_name,
             'Optional dense embedding dependency sentence-transformers is not installed. '
             f'{OPTIONAL_DEPENDENCY_MESSAGE}',
         )
@@ -691,26 +724,26 @@ def run_phase2_relation_evaluation(write_output: bool = True) -> dict:
     cases = load_relation_cases()
     try:
         per_case_results = [
-            evaluate_relation_case(case, PHASE2_DENSE_METHOD)
+            evaluate_relation_case(case, method_config)
             for case in cases
         ]
     except DenseEmbeddingUnavailable as exc:
-        return unavailable_phase2_relation_report(str(exc))
+        return unavailable_phase2_relation_report(method_name, str(exc))
 
     metrics = summarize_relation_results(per_case_results)
     report = {
         'benchmark_name': 'phase2_relation_heavy_multidocument',
-        'method_name': DENSE_METHOD_NAME,
+        'method_name': method_name,
         'method_available': True,
         'timestamp': datetime.now(timezone.utc).isoformat(),
         'metrics': metrics,
         'per_case_results': per_case_results,
-        'notes': PHASE2_DENSE_METHOD['notes'],
-        'known_limitations': PHASE2_DENSE_METHOD['known_limitations'],
+        'notes': method_config['notes'],
+        'known_limitations': method_config['known_limitations'],
     }
 
     if write_output:
-        output_path = PHASE2_DENSE_METHOD['output_path']
+        output_path = method_config['output_path']
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(
             json.dumps(report, ensure_ascii=False, indent=2),
@@ -718,6 +751,13 @@ def run_phase2_relation_evaluation(write_output: bool = True) -> dict:
         )
 
     return report
+
+
+def run_all_phase2_relation_evaluations(write_output: bool = True) -> list[dict]:
+    return [
+        run_phase2_relation_evaluation(method_name=method_name, write_output=write_output)
+        for method_name in PHASE2_METHODS
+    ]
 
 
 def run_all_evaluations(write_output: bool = True) -> list[dict]:
@@ -776,7 +816,8 @@ def print_phase2_relation_summary(report: dict) -> None:
     print(f"Failed cases: {metrics['failed_cases']}")
     print(f"Average latency: {metrics['average_latency_ms']:.2f} ms")
     if report.get('method_available', True):
-        print(f"Report: {PHASE2_DENSE_METHOD['output_path'].relative_to(REPO_ROOT)}")
+        output_path = PHASE2_METHODS[report['method_name']]['output_path']
+        print(f"Report: {output_path.relative_to(REPO_ROOT)}")
         partial_or_failed = [
             result['id'] for result in report['per_case_results']
             if result['coverage_status'] != 'covered'
@@ -792,8 +833,9 @@ def main() -> int:
         if index:
             print()
         print_summary(report)
-    print()
-    print_phase2_relation_summary(run_phase2_relation_evaluation(write_output=True))
+    for report in run_all_phase2_relation_evaluations(write_output=True):
+        print()
+        print_phase2_relation_summary(report)
     return 0
 
 

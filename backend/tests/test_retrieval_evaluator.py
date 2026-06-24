@@ -16,14 +16,24 @@ from scripts.evaluate_retrieval import (  # noqa: E402
     HYBRID_WEIGHT_CONFIGS,
     METHOD_NAME,
     PHASE2_DENSE_METHOD,
+    PHASE2_LIGHTRAG_METHOD,
+    PHASE2_METHODS,
     load_cases,
+    load_relation_chunk_records,
     load_relation_cases,
+    run_all_phase2_relation_evaluations,
     run_all_evaluations,
     run_evaluation,
     run_phase2_relation_evaluation,
 )
 from utils.embedding_retrieval import (  # noqa: E402
     combine_normalized_scores,
+)
+from utils.lightrag_retrieval import (  # noqa: E402
+    LIGHTRAG_RETRIEVAL_METHOD,
+    build_relation_graph,
+    extract_relation_concepts,
+    select_relevant_chunks_lightrag_with_metadata,
 )
 
 
@@ -336,3 +346,84 @@ def test_phase2_relation_evaluator_skips_cleanly_when_dense_unavailable(monkeypa
     assert metrics['total_cases'] == 5
     assert metrics['evaluated_cases'] == 0
     assert all(result['skipped'] for result in report['per_case_results'])
+
+
+def test_lightrag_concept_extraction_finds_relation_terms():
+    text = (
+        'Climate disruption reduces agricultural production. Food insecurity '
+        'then contributes to displacement and migration pressure.'
+    )
+
+    concepts = extract_relation_concepts(text)
+
+    assert 'climate disruption' in concepts
+    assert 'agricultural production' in concepts
+    assert 'food insecurity' in concepts
+    assert 'migration pressure' in concepts
+
+
+def test_lightrag_relation_graph_tracks_chunks_and_concepts():
+    case = load_relation_cases()[0]
+    records = load_relation_chunk_records(case)
+
+    graph = build_relation_graph(records)
+
+    assert len(graph['chunks']) == len(records)
+    assert 'food insecurity' in graph['concept_to_chunks']
+    assert graph['concept_to_chunks']['food insecurity']
+    assert 'climate disruption' in graph['adjacency']
+
+
+def test_lightrag_retrieval_output_shape():
+    case = load_relation_cases()[0]
+    records = load_relation_chunk_records(case)
+    params = dict(case['params'])
+    params['query'] = case['query']
+
+    selected = select_relevant_chunks_lightrag_with_metadata(
+        records,
+        params,
+        max_excerpts=3,
+        max_total_characters=3600,
+    )
+    first_selected = selected[0]
+
+    assert len(selected) == 3
+    assert set(first_selected) == {
+        'text',
+        'source_filename',
+        'source_type',
+        'chunk_index',
+        'score',
+        'retrieval_method',
+        'graph_signals',
+    }
+    assert first_selected['retrieval_method'] == LIGHTRAG_RETRIEVAL_METHOD
+    assert first_selected['graph_signals']['concepts']
+
+
+def test_phase2_lightrag_evaluator_runs_without_optional_dense_dependency():
+    report = run_phase2_relation_evaluation(
+        method_name=LIGHTRAG_RETRIEVAL_METHOD,
+        write_output=False,
+    )
+    metrics = report['metrics']
+
+    assert report['method_name'] == LIGHTRAG_RETRIEVAL_METHOD
+    assert report['method_available'] is True
+    assert metrics['total_cases'] == 5
+    assert metrics['evaluated_cases'] == 5
+    assert metrics['multi_document_recall_at_3'] >= 0
+    assert report['per_case_results']
+
+
+def test_phase2_evaluator_registers_dense_and_lightrag_methods(monkeypatch):
+    monkeypatch.setitem(PHASE2_DENSE_METHOD, 'availability_check', lambda: False)
+
+    reports = run_all_phase2_relation_evaluations(write_output=False)
+    by_method = {report['method_name']: report for report in reports}
+
+    assert set(PHASE2_METHODS) == {DENSE_METHOD_NAME, LIGHTRAG_RETRIEVAL_METHOD}
+    assert set(by_method) == {DENSE_METHOD_NAME, LIGHTRAG_RETRIEVAL_METHOD}
+    assert by_method[DENSE_METHOD_NAME]['method_available'] is False
+    assert by_method[LIGHTRAG_RETRIEVAL_METHOD]['method_available'] is True
