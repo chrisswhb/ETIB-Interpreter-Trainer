@@ -16,6 +16,7 @@ from scripts.evaluate_retrieval import (  # noqa: E402
     HYBRID_WEIGHT_CONFIGS,
     METHOD_NAME,
     PHASE2_DENSE_METHOD,
+    PHASE2_GRAPHRAG_METHOD,
     PHASE2_LIGHTRAG_METHOD,
     PHASE2_METHODS,
     load_cases,
@@ -34,6 +35,14 @@ from utils.lightrag_retrieval import (  # noqa: E402
     build_relation_graph,
     extract_relation_concepts,
     select_relevant_chunks_lightrag_with_metadata,
+)
+from utils.graphrag_retrieval import (  # noqa: E402
+    GRAPHRAG_RETRIEVAL_METHOD,
+    assign_themes,
+    build_global_local_graph,
+    extract_query_themes,
+    rank_global_documents,
+    select_relevant_chunks_graphrag_with_metadata,
 )
 
 
@@ -417,13 +426,164 @@ def test_phase2_lightrag_evaluator_runs_without_optional_dense_dependency():
     assert report['per_case_results']
 
 
-def test_phase2_evaluator_registers_dense_and_lightrag_methods(monkeypatch):
+def test_phase2_evaluator_registers_dense_lightrag_and_graphrag_methods(monkeypatch):
     monkeypatch.setitem(PHASE2_DENSE_METHOD, 'availability_check', lambda: False)
 
     reports = run_all_phase2_relation_evaluations(write_output=False)
     by_method = {report['method_name']: report for report in reports}
 
-    assert set(PHASE2_METHODS) == {DENSE_METHOD_NAME, LIGHTRAG_RETRIEVAL_METHOD}
-    assert set(by_method) == {DENSE_METHOD_NAME, LIGHTRAG_RETRIEVAL_METHOD}
+    assert set(PHASE2_METHODS) == {
+        DENSE_METHOD_NAME,
+        LIGHTRAG_RETRIEVAL_METHOD,
+        GRAPHRAG_RETRIEVAL_METHOD,
+    }
+    assert set(by_method) == {
+        DENSE_METHOD_NAME,
+        LIGHTRAG_RETRIEVAL_METHOD,
+        GRAPHRAG_RETRIEVAL_METHOD,
+    }
     assert by_method[DENSE_METHOD_NAME]['method_available'] is False
     assert by_method[LIGHTRAG_RETRIEVAL_METHOD]['method_available'] is True
+    assert by_method[GRAPHRAG_RETRIEVAL_METHOD]['method_available'] is True
+
+
+def test_graphrag_global_local_graph_has_typed_nodes_and_edges():
+    case = load_relation_cases()[0]
+    records = load_relation_chunk_records(case)
+
+    graph = build_global_local_graph(records)
+    node_types = {node['type'] for node in graph['nodes'].values()}
+    edge_types = {edge['type'] for edge in graph['edges']}
+
+    assert {'document', 'chunk', 'concept', 'entity', 'relation', 'theme'}.issubset(node_types)
+    assert {
+        'contains_chunk',
+        'mentions_concept',
+        'mentions_entity',
+        'has_relation_cue',
+        'theme_in_document',
+        'theme_supports_chunk',
+        'co_occurs',
+        'causal_link',
+    }.issubset(edge_types)
+    assert graph['theme_to_documents']
+    assert graph['concept_to_chunks']['food insecurity']
+
+
+def test_graphrag_global_themes_are_deterministic():
+    concepts = {
+        'climate disruption',
+        'food insecurity',
+        'health services',
+        'regional funding',
+        'regional cooperation',
+    }
+
+    assert assign_themes(concepts) == {
+        'climate_agriculture',
+        'food_migration',
+        'health_displacement',
+        'regional_funding',
+        'regional_cooperation',
+    }
+
+
+def test_graphrag_local_query_theme_and_document_ranking():
+    case = next(
+        item for item in load_relation_cases()
+        if item['id'] == 'full_humanitarian_speech_evidence'
+    )
+    records = load_relation_chunk_records(case)
+    graph = build_global_local_graph(records)
+    query_concepts = {
+        'climate disruption',
+        'food insecurity',
+        'migration pressure',
+        'health services',
+        'regional funding',
+    }
+    query_themes = extract_query_themes(case['query'], query_concepts)
+    ranked_documents = rank_global_documents(graph, query_themes, query_concepts)
+
+    assert {'food_migration', 'health_displacement', 'regional_funding'}.issubset(
+        query_themes
+    )
+    assert ranked_documents['food_security_migration.txt'] > 0
+    assert ranked_documents['health_displacement.txt'] > 0
+    assert ranked_documents['regional_funding.txt'] > 0
+
+
+def test_graphrag_retrieval_output_shape():
+    case = load_relation_cases()[0]
+    records = load_relation_chunk_records(case)
+    params = dict(case['params'])
+    params['query'] = case['query']
+
+    selected = select_relevant_chunks_graphrag_with_metadata(
+        records,
+        params,
+        max_excerpts=3,
+        max_total_characters=3600,
+    )
+    first_selected = selected[0]
+
+    assert len(selected) == 3
+    assert set(first_selected) == {
+        'text',
+        'source_filename',
+        'source_type',
+        'chunk_index',
+        'score',
+        'retrieval_method',
+        'graph_diagnostics',
+    }
+    assert first_selected['retrieval_method'] == GRAPHRAG_RETRIEVAL_METHOD
+    assert {
+        'matched_themes',
+        'direct_concepts',
+        'expanded_concepts',
+        'relation_evidence',
+        'global_score',
+        'local_path_score',
+    }.issubset(first_selected['graph_diagnostics'])
+
+
+def test_graphrag_broad_synthesis_case_uses_global_and_local_evidence():
+    case = next(
+        item for item in load_relation_cases()
+        if item['id'] == 'full_humanitarian_speech_evidence'
+    )
+    records = load_relation_chunk_records(case)
+    params = dict(case['params'])
+    params['query'] = case['query']
+
+    selected = select_relevant_chunks_graphrag_with_metadata(
+        records,
+        params,
+        max_excerpts=3,
+        max_total_characters=3600,
+    )
+    selected_sources = {chunk['source_filename'] for chunk in selected}
+    required_sources = set(case['required_sources'])
+    covered_sources = selected_sources.intersection(required_sources)
+
+    assert len(covered_sources) >= 2
+    assert 'health_displacement.txt' in selected_sources
+    assert any(chunk['graph_diagnostics']['matched_themes'] for chunk in selected)
+    assert any(chunk['graph_diagnostics']['direct_concepts'] for chunk in selected)
+
+
+def test_phase2_graphrag_evaluator_runs():
+    report = run_phase2_relation_evaluation(
+        method_name=GRAPHRAG_RETRIEVAL_METHOD,
+        write_output=False,
+    )
+    metrics = report['metrics']
+
+    assert report['method_name'] == GRAPHRAG_RETRIEVAL_METHOD
+    assert report['method_available'] is True
+    assert PHASE2_GRAPHRAG_METHOD['method_name'] == GRAPHRAG_RETRIEVAL_METHOD
+    assert metrics['total_cases'] == 5
+    assert metrics['evaluated_cases'] == 5
+    assert metrics['required_source_coverage'] >= 0.8
+    assert report['per_case_results']

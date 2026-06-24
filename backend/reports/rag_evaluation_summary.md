@@ -128,7 +128,7 @@ Case-level dense coverage:
 - The exact weakness Phase 2 exposed is independent chunk ranking that can retrieve relevant individual facts without covering every required document in a long multi-hop relation chain.
 - LightRAG or GraphRAG is justified for testing next because graph-style methods may improve required-source coverage and relation-chain completeness on broad multi-document speech-generation requests.
 
-### LightRAG-Style Offline Comparison
+### LightRAG-Style And GraphRAG-Style Offline Comparison
 
 `lightrag_relation_graph` is an offline-only local prototype. It does not use
 the official LightRAG package, does not call an LLM, does not use a vector
@@ -136,20 +136,40 @@ database, and is not integrated into any Flask endpoint. It builds a small
 in-memory graph from deterministic concept, entity, relation-cue, chunk, and
 document links, then selects diverse relation evidence for the Phase 2 cases.
 
-| Method | Multi-doc Recall@3 | Required-source coverage | Relation-term hit rate | Relation-chain coverage | Avg distinct docs@3 | Avg latency | Status |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| `dense_multilingual_embedding` | 0.80 | 0.87 | 0.96 | 0.92 | 3.00 | 138.30 ms warmed validation run | current production winner |
-| `lightrag_relation_graph` | 0.80 | 0.93 | 0.92 | 0.92 | 3.00 | 3.46 ms warmed validation run | experimental |
-| `GraphRAG` | pending | pending | pending | pending | pending | pending | not implemented |
+`graphrag_global_local` is also an offline-only local prototype. It is not the
+official Microsoft GraphRAG implementation. It uses a deterministic in-memory
+global/local graph with document nodes, chunk nodes, concept nodes, entity
+nodes, relation nodes, and theme/community nodes. Typed edges include document
+membership, concept mentions, entity mentions, relation-cue links, causal
+links, funding/support links, coordination links, co-occurrence links, and
+theme support links. The global layer ranks documents through deterministic
+themes such as climate/agriculture, food/migration, health/displacement,
+regional funding, and regional cooperation. The local layer scores direct query
+concepts, relation cues, lexical overlap, and local graph-path evidence before
+source-diverse final selection.
+
+| Method | Multi-doc Recall@3 | Required-source coverage | Relation-term hit rate | Relation-chain coverage | Avg distinct docs@3 | Warm local latency | Broad synthesis source coverage | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `dense_multilingual_embedding` | 0.80 | 0.87 | 0.96 | 0.92 | 3.00 | 179.39 ms | 0.33 | current production winner |
+| `lightrag_relation_graph` | 0.80 | 0.93 | 0.92 | 0.92 | 3.00 | 4.66 ms | 0.67 | offline experiment |
+| `graphrag_global_local` | 0.80 | 0.93 | 0.92 | 0.92 | 3.00 | 4.94 ms | 0.67 | offline experiment |
 
 Latency note: the comparison uses warm retrieval latency in the same local
 evaluation environment. Dense timing excludes the initial one-time embedding
 model load after warm-up, but includes fixture loading, chunking, embedding, and
-ranking for each case. LightRAG-style timing includes fixture loading, chunking,
-in-memory graph construction, graph expansion, scoring, and final evidence
-selection for each case. Earlier warmed comparison runs measured dense at
-457.00 ms and LightRAG-style at 10.60 ms, so these small-corpus latency values
-should be treated as local timing observations rather than deployment guarantees.
+ranking for each case. LightRAG-style and GraphRAG-style timing includes
+fixture loading, chunking, in-memory graph construction, graph expansion or
+global/local graph scoring, and final evidence selection for each case. Earlier
+warmed comparison runs measured dense at 457.00 ms and LightRAG-style at
+10.60 ms, so these small-corpus latency values should be treated as local
+timing observations rather than deployment guarantees.
+
+GraphRAG-style diagnostics from this run:
+
+- Average global query-theme coverage in selected evidence: 0.96.
+- Average local graph-path evidence coverage in selected chunks: 1.00.
+- Broad synthesis source coverage matched LightRAG-style at 0.67 and improved over dense at 0.33.
+- The broad synthesis case remained partial because none of the tested methods retrieved all required source documents in the top 3.
 
 Case-level comparison:
 
@@ -158,25 +178,29 @@ Case-level comparison:
 - `funding_health_food_security`: LightRAG tied dense.
 - `regional_cooperation_support_chain`: LightRAG tied dense.
 - `full_humanitarian_speech_evidence`: LightRAG improved required-source coverage from 0.33 to 0.67 by retrieving `health_displacement.txt`, but it still partially failed and did not recover `climate_agriculture.txt`. Relation-term hit rate dropped from 0.80 to 0.60 on this case.
+- `graphrag_global_local` tied LightRAG-style on every headline Phase 2 metric in this run. It selected `regional_funding.txt`, `health_displacement.txt`, and `food_security_migration.txt` for the broad synthesis case.
 
 Interpretation:
 
 - LightRAG-style retrieval improved source coverage on the broadest synthesis case.
 - LightRAG-style retrieval did not beat dense overall because relation-term hit rate was lower.
+- GraphRAG-style retrieval matched LightRAG-style on source coverage, relation-chain coverage, and broad synthesis coverage.
+- GraphRAG-style retrieval did not beat dense overall because relation-term hit rate was lower and the broad synthesis case remained partial.
 - Dense remains the current production winner.
-- The LightRAG-style result is promising enough to justify further relation-graph experiments, but not strong enough to replace dense production retrieval.
-- GraphRAG is still not implemented or measured.
+- The LightRAG-style and GraphRAG-style results are promising enough to justify further relation-graph experiments, but not strong enough to replace dense production retrieval.
+- The official LightRAG package and official Microsoft GraphRAG are still not implemented.
 
-## Future Comparison Placeholder
+## Method Comparison Status
 
 | Method | Phase 1 general retrieval | Phase 2 relation retrieval | Required-source coverage | Relation-chain coverage | Latency | Status |
 | --- | --- | --- | --- | --- | --- | --- |
 | Sparse / RAG-lite | measured | not yet tested on Phase 2 | pending | pending | measured | completed |
 | BM25 | measured | not yet tested on Phase 2 | pending | pending | measured | completed |
-| Dense multilingual | measured | measured | 0.87 | 0.92 | 1736.45 ms original Phase 2 run; 138.30-457.00 ms warmed comparison runs | current production winner |
+| Dense multilingual | measured | measured | 0.87 | 0.92 | 1736.45 ms original Phase 2 run; 138.30-457.00 ms warmed comparison runs; 179.39 ms latest GraphRAG comparison run | current production winner |
 | Hybrid BM25 + dense | measured | not yet tested on Phase 2 | pending | pending | measured for Phase 1 | completed Phase 1 only |
-| LightRAG-style local graph | not tested on Phase 1 | measured | 0.93 | 0.92 | 3.46-10.60 ms on warmed Phase 2 runs | experimental offline prototype |
-| GraphRAG | not implemented | pending | pending | pending | pending | future experiment |
+| LightRAG-style local graph | not tested on Phase 1 | measured | 0.93 | 0.92 | 3.46-10.60 ms on warmed Phase 2 runs; 4.66 ms latest GraphRAG comparison run | experimental offline prototype |
+| GraphRAG-style global/local graph | not tested on Phase 1 | measured | 0.93 | 0.92 | 4.94 ms latest GraphRAG comparison run | experimental offline prototype |
+| Official Microsoft GraphRAG | not implemented | pending | pending | pending | pending | future experiment |
 
 ## What Not To Claim
 
@@ -186,11 +210,19 @@ Interpretation:
 - Do not claim dense is the final winner across all task types before Phase 2 graph comparisons are completed.
 - Do not claim the LightRAG-style prototype beats dense overall.
 - Do not claim the official LightRAG package was implemented.
-- Do not claim GraphRAG or the official LightRAG framework was implemented.
+- Do not claim the official Microsoft GraphRAG or official LightRAG framework was implemented.
+- Do not claim the local GraphRAG-style prototype is production-ready or better than dense overall.
+
+## Final ETIB Retrieval Recommendation
+
+- Production: keep dense multilingual embedding retrieval as the current production retrieval method.
+- Research finding: relation-aware graph prototypes can improve multi-document required-source coverage on broad synthesis cases.
+- Preferred graph experiment: `lightrag_relation_graph`, because it achieved the same current Phase 2 performance as `graphrag_global_local` with lower conceptual complexity.
+- GraphRAG-style: retain only as a research comparison; do not integrate it into product retrieval unless larger and more diverse relation benchmarks show a measurable advantage.
 
 ## Next Recommended Work
 
 - Add Phase 2 sparse/BM25 baselines only if the team wants a broader relation benchmark comparison.
 - Test a stronger multilingual embedding model if semantic paraphrase remains weak.
-- Compare LightRAG and GraphRAG later on the same Phase 2 cases.
+- Expand the Phase 2 relation benchmark before drawing stronger graph-method conclusions.
 - Integrate no graph method into production until it shows measurable value over dense retrieval on relation-heavy speech-generation tasks.

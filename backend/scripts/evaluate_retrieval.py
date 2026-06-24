@@ -23,6 +23,7 @@ REPORT_DIR = BACKEND_ROOT / 'reports' / 'rag_results'
 DEFAULT_OUTPUT_PATH = REPORT_DIR / 'rag_lite_baseline.json'
 PHASE2_DENSE_OUTPUT_PATH = REPORT_DIR / 'phase2_dense_multidocument_relations.json'
 PHASE2_LIGHTRAG_OUTPUT_PATH = REPORT_DIR / 'phase2_lightrag_relation_graph.json'
+PHASE2_GRAPHRAG_OUTPUT_PATH = REPORT_DIR / 'phase2_graphrag_global_local.json'
 
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
@@ -46,6 +47,10 @@ from utils.embedding_retrieval import (  # noqa: E402
 from utils.lightrag_retrieval import (  # noqa: E402
     LIGHTRAG_RETRIEVAL_METHOD,
     select_relevant_chunks_lightrag_with_metadata,
+)
+from utils.graphrag_retrieval import (  # noqa: E402
+    GRAPHRAG_RETRIEVAL_METHOD,
+    select_relevant_chunks_graphrag_with_metadata,
 )
 
 
@@ -149,9 +154,25 @@ PHASE2_LIGHTRAG_METHOD = {
         'GraphRAG is not implemented or tested.',
     ],
 }
+PHASE2_GRAPHRAG_METHOD = {
+    'method_name': GRAPHRAG_RETRIEVAL_METHOD,
+    'selector': select_relevant_chunks_graphrag_with_metadata,
+    'output_path': PHASE2_GRAPHRAG_OUTPUT_PATH,
+    'notes': [
+        'Phase 2 relation-heavy multi-document benchmark.',
+        'Offline GraphRAG-style prototype using deterministic global themes and local graph paths.',
+        'No official Microsoft GraphRAG package, LLM call, graph database, vector database, or endpoint integration is used.',
+    ],
+    'known_limitations': [
+        'Themes, entities, and typed relation edges are deterministic heuristics.',
+        'No LLM-generated claims, graph communities, or natural-language graph summaries are produced.',
+        'Not integrated into production retrieval.',
+    ],
+}
 PHASE2_METHODS = {
     DENSE_METHOD_NAME: PHASE2_DENSE_METHOD,
     LIGHTRAG_RETRIEVAL_METHOD: PHASE2_LIGHTRAG_METHOD,
+    GRAPHRAG_RETRIEVAL_METHOD: PHASE2_GRAPHRAG_METHOD,
 }
 
 
