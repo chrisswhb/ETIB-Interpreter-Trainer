@@ -1,0 +1,235 @@
+[
+  {
+    "id": "climate_food_migration_chain",
+    "description": "Requires the chain from climate disruption to agriculture, food insecurity, and migration pressure.",
+    "query": "How are climate disruption, agriculture, food security, and migration pressure connected?",
+    "params": {
+      "language": "en",
+      "domain": "climate migration food security",
+      "scenario": "multi-document policy briefing"
+    },
+    "fixture_files": [
+      "climate_agriculture.txt",
+      "food_security_migration.txt",
+      "health_displacement.txt",
+      "regional_funding.txt",
+      "cooperation_policy.txt"
+    ],
+    "required_sources": [
+      "climate_agriculture.txt",
+      "food_security_migration.txt"
+    ],
+    "expected_entities": [
+      "small farmers",
+      "families",
+      "community leaders"
+    ],
+    "expected_relation_terms": [
+      "climate disruption",
+      "agricultural production",
+      "food insecurity",
+      "migration pressure"
+    ],
+    "relation_chain": [
+      "climate disruption",
+      "agricultural production",
+      "food insecurity",
+      "migration pressure"
+    ],
+    "expected_evidence_terms": [
+      "harvests",
+      "food prices",
+      "displacement"
+    ],
+    "category": "relation_multidoc",
+    "difficulty": "medium",
+    "multi_document_required": true
+  },
+  {
+    "id": "displacement_health_service_chain",
+    "description": "Requires connecting food-security displacement to health-service and vaccination pressure.",
+    "query": "What evidence explains how food insecurity and displacement create pressure on health services and vaccination programmes?",
+    "params": {
+      "language": "en",
+      "domain": "health displacement food security",
+      "scenario": "humanitarian health briefing"
+    },
+    "fixture_files": [
+      "food_security_migration.txt",
+      "health_displacement.txt",
+      "regional_funding.txt"
+    ],
+    "required_sources": [
+      "food_security_migration.txt",
+      "health_displacement.txt"
+    ],
+    "expected_entities": [
+      "families",
+      "health workers",
+      "host communities"
+    ],
+    "expected_relation_terms": [
+      "food insecurity",
+      "displacement",
+      "health services",
+      "vaccination programmes"
+    ],
+    "relation_chain": [
+      "food insecurity",
+      "displacement",
+      "health services",
+      "vaccination programmes"
+    ],
+    "expected_evidence_terms": [
+      "cross-border migration",
+      "routine immunisation",
+      "mobile vaccination teams"
+    ],
+    "category": "relation_multidoc",
+    "difficulty": "medium",
+    "multi_document_required": true
+  },
+  {
+    "id": "funding_health_food_security",
+    "description": "Requires identifying funders and the funded health and food-security programme areas.",
+    "query": "Which organizations or regional partners fund programmes related to health, food security, and resilience?",
+    "params": {
+      "language": "en",
+      "domain": "regional funding health food security",
+      "scenario": "donor coordination briefing",
+      "number_density": "high"
+    },
+    "fixture_files": [
+      "regional_funding.txt",
+      "health_displacement.txt",
+      "food_security_migration.txt"
+    ],
+    "required_sources": [
+      "regional_funding.txt",
+      "health_displacement.txt"
+    ],
+    "expected_entities": [
+      "World Health Organization",
+      "Arab League",
+      "United Nations Development Programme",
+      "Regional Resilience Fund"
+    ],
+    "expected_relation_terms": [
+      "fund",
+      "health",
+      "food-security programmes",
+      "vaccination outreach"
+    ],
+    "relation_chain": [
+      "Regional Resilience Fund",
+      "vaccination outreach",
+      "food-security logistics"
+    ],
+    "expected_evidence_terms": [
+      "2026",
+      "42 million dollars",
+      "health services"
+    ],
+    "category": "relation_multidoc",
+    "difficulty": "hard",
+    "multi_document_required": true
+  },
+  {
+    "id": "regional_cooperation_support_chain",
+    "description": "Requires connecting regional cooperation to logistics and support for vulnerable communities.",
+    "query": "What relationship connects regional cooperation to logistics, cross-border support, and vulnerable communities?",
+    "params": {
+      "language": "en",
+      "domain": "regional cooperation logistics",
+      "scenario": "policy coordination briefing"
+    },
+    "fixture_files": [
+      "cooperation_policy.txt",
+      "regional_funding.txt",
+      "health_displacement.txt"
+    ],
+    "required_sources": [
+      "cooperation_policy.txt",
+      "regional_funding.txt"
+    ],
+    "expected_entities": [
+      "countries",
+      "institutions",
+      "health ministries",
+      "humanitarian organizations"
+    ],
+    "expected_relation_terms": [
+      "regional cooperation",
+      "logistics",
+      "cross-border support",
+      "vulnerable communities"
+    ],
+    "relation_chain": [
+      "regional cooperation",
+      "logistics",
+      "cross-border support",
+      "vulnerable communities"
+    ],
+    "expected_evidence_terms": [
+      "food",
+      "vaccines",
+      "agricultural inputs"
+    ],
+    "category": "relation_multidoc",
+    "difficulty": "medium",
+    "multi_document_required": true
+  },
+  {
+    "id": "full_humanitarian_speech_evidence",
+    "description": "Three-document chain for a speech linking climate, migration, food security, health, funding, and cooperation.",
+    "query": "Retrieve evidence for a speech explaining the link between climate, migration, food security, health, funding, and regional cooperation.",
+    "params": {
+      "language": "en",
+      "domain": "humanitarian policy",
+      "scenario": "document-grounded speech generation",
+      "number_density": "medium"
+    },
+    "fixture_files": [
+      "climate_agriculture.txt",
+      "food_security_migration.txt",
+      "health_displacement.txt",
+      "regional_funding.txt",
+      "cooperation_policy.txt"
+    ],
+    "required_sources": [
+      "climate_agriculture.txt",
+      "food_security_migration.txt",
+      "health_displacement.txt"
+    ],
+    "expected_entities": [
+      "World Health Organization",
+      "Arab League",
+      "United Nations Development Programme",
+      "health ministries"
+    ],
+    "expected_relation_terms": [
+      "climate disruption",
+      "food insecurity",
+      "displacement",
+      "health services",
+      "regional cooperation"
+    ],
+    "relation_chain": [
+      "climate disruption",
+      "agricultural production",
+      "food insecurity",
+      "displacement",
+      "health services"
+    ],
+    "expected_evidence_terms": [
+      "rural livelihoods",
+      "migration pressure",
+      "vaccination programmes",
+      "resilience",
+      "cross-border support"
+    ],
+    "category": "relation_multidoc",
+    "difficulty": "hard",
+    "multi_document_required": true
+  }
+]

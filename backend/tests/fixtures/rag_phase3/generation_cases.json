@@ -1,0 +1,122 @@
+[
+  {
+    "case_id": "single_doc_exact_climate_en",
+    "source_documents": ["climate_finance_en.txt"],
+    "user_request": "Prepare a conference speech on climate finance, renewable energy training, and technology transfer for developing countries.",
+    "target_language": "en",
+    "requested_duration_seconds": 120,
+    "expected_source_documents": ["climate_finance_en.txt"],
+    "key_factual_claims": ["Coastal Adaptation Facility", "2026", "42 local projects", "18 percent", "technology transfer"],
+    "expected_relation_chain": [],
+    "retrieval_type_category": "single_document_focused",
+    "evaluator_notes": "Exact focused English topic from one source."
+  },
+  {
+    "case_id": "single_doc_paraphrase_health_fr",
+    "source_documents": ["health_systems_fr.txt"],
+    "user_request": "Redigez un discours sur la maniere dont des soins preventifs bien finances protegent les familles deplacees.",
+    "target_language": "fr",
+    "requested_duration_seconds": 120,
+    "expected_source_documents": ["health_systems_fr.txt"],
+    "key_factual_claims": ["Organisation mondiale de la Sante", "prevention", "vaccination", "financement", "cliniques mobiles"],
+    "expected_relation_chain": [],
+    "retrieval_type_category": "single_document_paraphrased",
+    "evaluator_notes": "French paraphrase should still retrieve prevention, vaccination, and financing evidence."
+  },
+  {
+    "case_id": "single_doc_arabic_diplomacy_ar",
+    "source_documents": ["arab_diplomacy_ar.txt"],
+    "user_request": "اكتب خطابا عن دور الجامعة العربية في التعاون الإقليمي وحماية الأمن الغذائي.",
+    "target_language": "ar",
+    "requested_duration_seconds": 120,
+    "expected_source_documents": ["arab_diplomacy_ar.txt"],
+    "key_factual_claims": ["الجامعة العربية", "التعاون الإقليمي", "الأمن الغذائي", "التنمية المستدامة", "٢٠٢٦"],
+    "expected_relation_chain": [],
+    "retrieval_type_category": "single_document_arabic",
+    "evaluator_notes": "Arabic source and Arabic request."
+  },
+  {
+    "case_id": "numbers_entities_precision_en",
+    "source_documents": ["numbers_entities_en.txt"],
+    "user_request": "Generate a speech that accurately reports the institutions, names, dates, and figures in the resilience fund briefing.",
+    "target_language": "en",
+    "requested_duration_seconds": 120,
+    "expected_source_documents": ["numbers_entities_en.txt"],
+    "key_factual_claims": ["May 2026", "World Health Organization", "Arab League", "42 delegates", "18 percent", "3.5 million dollars", "Dr. Lina Haddad"],
+    "expected_relation_chain": [],
+    "retrieval_type_category": "numbers_entities_precision",
+    "evaluator_notes": "Tests exact names, dates, percentages, and organizations."
+  },
+  {
+    "case_id": "multi_doc_direct_relation_food_health",
+    "source_documents": ["food_security_migration_en.txt", "health_displacement_en.txt"],
+    "user_request": "Explain how food insecurity and displacement create pressure on health services and vaccination teams.",
+    "target_language": "en",
+    "requested_duration_seconds": 150,
+    "expected_source_documents": ["food_security_migration_en.txt", "health_displacement_en.txt"],
+    "key_factual_claims": ["food insecurity", "temporary displacement", "health services", "mobile vaccination teams", "routine immunisation"],
+    "expected_relation_chain": ["food insecurity", "displacement", "health services", "vaccination"],
+    "retrieval_type_category": "multi_document_direct_relation",
+    "evaluator_notes": "Direct two-document relation case."
+  },
+  {
+    "case_id": "multi_doc_chain_climate_migration_health",
+    "source_documents": ["climate_agriculture_en.txt", "food_security_migration_en.txt", "health_displacement_en.txt"],
+    "user_request": "Prepare a speech tracing the chain from climate disruption to agriculture, food insecurity, displacement, and pressure on clinics.",
+    "target_language": "en",
+    "requested_duration_seconds": 180,
+    "expected_source_documents": ["climate_agriculture_en.txt", "food_security_migration_en.txt", "health_displacement_en.txt"],
+    "key_factual_claims": ["climate disruption", "agricultural production", "food insecurity", "temporary displacement", "health services"],
+    "expected_relation_chain": ["climate disruption", "agricultural production", "food insecurity", "displacement", "health services"],
+    "retrieval_type_category": "multi_document_relation_chain",
+    "evaluator_notes": "Three-document causal chain."
+  },
+  {
+    "case_id": "broad_synthesis_humanitarian_speech",
+    "source_documents": ["climate_agriculture_en.txt", "food_security_migration_en.txt", "health_displacement_en.txt", "regional_funding_en.txt", "cooperation_policy_en.txt"],
+    "user_request": "Create a humanitarian policy speech connecting climate, migration, food security, health services, funding, and regional cooperation.",
+    "target_language": "en",
+    "requested_duration_seconds": 210,
+    "expected_source_documents": ["climate_agriculture_en.txt", "food_security_migration_en.txt", "health_displacement_en.txt"],
+    "key_factual_claims": ["climate stress", "food insecurity", "migration pressure", "health services", "regional cooperation", "42 million dollars"],
+    "expected_relation_chain": ["climate disruption", "agricultural production", "food insecurity", "displacement", "health services"],
+    "retrieval_type_category": "broad_synthesis",
+    "evaluator_notes": "Known difficult broad synthesis case."
+  },
+  {
+    "case_id": "distractor_documents_regional_funding",
+    "source_documents": ["regional_funding_en.txt", "distractor_sports_en.txt", "cooperation_policy_en.txt"],
+    "user_request": "Prepare a speech about regional funding for vaccination outreach and food-security logistics, avoiding unrelated sports information.",
+    "target_language": "en",
+    "requested_duration_seconds": 150,
+    "expected_source_documents": ["regional_funding_en.txt", "cooperation_policy_en.txt"],
+    "key_factual_claims": ["Regional Resilience Fund", "42 million dollars", "vaccination outreach", "food-security logistics", "cross-border support"],
+    "expected_relation_chain": ["regional funding", "vaccination outreach", "food-security logistics"],
+    "retrieval_type_category": "distractor_documents",
+    "evaluator_notes": "Contains an overlapping-vocabulary distractor."
+  },
+  {
+    "case_id": "cross_language_request_fr_sources_en",
+    "source_documents": ["climate_finance_en.txt", "regional_funding_en.txt"],
+    "user_request": "Redigez un discours en francais sur le financement climatique, la formation solaire et le soutien regional.",
+    "target_language": "fr",
+    "requested_duration_seconds": 150,
+    "expected_source_documents": ["climate_finance_en.txt", "regional_funding_en.txt"],
+    "key_factual_claims": ["climate finance", "solar and wind training", "Regional Resilience Fund", "42 million dollars"],
+    "expected_relation_chain": [],
+    "retrieval_type_category": "cross_language_request",
+    "evaluator_notes": "French request over English sources."
+  },
+  {
+    "case_id": "arabic_output_from_multidoc_sources",
+    "source_documents": ["food_security_migration_en.txt", "health_systems_fr.txt", "regional_funding_en.txt"],
+    "user_request": "اكتب خطابا عربيا يربط بين الأمن الغذائي والوقاية الصحية والتمويل الإقليمي.",
+    "target_language": "ar",
+    "requested_duration_seconds": 180,
+    "expected_source_documents": ["food_security_migration_en.txt", "health_systems_fr.txt", "regional_funding_en.txt"],
+    "key_factual_claims": ["food insecurity", "prevention", "vaccination", "Regional Resilience Fund", "42 million dollars"],
+    "expected_relation_chain": ["food insecurity", "prevention", "vaccination", "regional funding"],
+    "retrieval_type_category": "arabic_output_multidocument",
+    "evaluator_notes": "Arabic output request grounded in English and French sources."
+  }
+]
