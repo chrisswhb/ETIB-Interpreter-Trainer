@@ -70,10 +70,13 @@ Implemented:
 - structured result objects;
 - retrieval/context proxy metrics;
 - schema and pipeline tests.
+- explicit real-generation evaluator mode for a future controlled Gemini pilot;
+- preflight validation that checks configuration and run shape without calling a
+  provider.
 
 Not implemented yet:
 
-- real Groq, Gemini, local Aya, or remote Aya generation;
+- executed real Groq, Gemini, local Aya, or remote Aya generation;
 - human speech-quality scoring;
 - production endpoint integration;
 - frontend integration;
@@ -92,6 +95,32 @@ The initial harness measures context availability only:
 - output schema validity.
 
 These proxy metrics are not final speech-quality metrics.
+
+## Real Pilot Readiness
+
+Mock structural validation is complete. Real-mode evaluator support is
+implemented but has not been executed against a live provider.
+
+Gemini is the proposed first provider once `GOOGLE_AI_KEY` is configured
+locally. The initial real pilot is designed to use:
+
+- 10 cases;
+- 3 retrieval methods;
+- 1 generation per method/case;
+- 30 total generations;
+- temperature 0;
+- max_tokens 2800;
+- fixed canonical prompt template;
+- fixed 3-chunk / 3600-character context budget.
+
+The real pilot must keep the provider, model, temperature, maximum output
+length, prompt template, language, requested duration, and context budget fixed
+for every retrieval method. The only intended variable is the retrieved
+evidence.
+
+Hosted model output may still have minor non-determinism despite temperature 0.
+No final speech-quality conclusion is permitted until real outputs are
+generated and reviewed.
 
 ## Future Human Scoring Rubric
 

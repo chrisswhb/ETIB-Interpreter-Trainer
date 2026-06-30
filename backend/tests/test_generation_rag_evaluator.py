@@ -2,6 +2,8 @@
 from pathlib import Path
 import sys
 
+import pytest
+
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
@@ -65,10 +67,17 @@ def test_each_method_produces_required_output_shape():
             'case_id',
             'retrieval_method',
             'target_language',
+            'requested_duration_seconds',
             'retrieved_evidence',
             'canonical_prompt',
             'generated_speech',
+            'generation_error',
             'generation_mode',
+            'provider',
+            'model',
+            'temperature',
+            'max_tokens',
+            'prompt_template_hash',
             'context_character_count',
             'retrieved_source_documents',
             'retrieval_latency_ms',
@@ -79,6 +88,9 @@ def test_each_method_produces_required_output_shape():
         assert result['case_id'] == case['case_id']
         assert result['retrieval_method'] == method_name
         assert result['generation_mode'] == evaluator.GENERATION_MODE_MOCK
+        assert result['provider'] is None
+        assert result['model'] is None
+        assert result['generation_error'] is None
         assert result['retrieved_evidence']
         assert result['generated_speech'].startswith(f"[MOCK {case['target_language']} SPEECH]")
 
@@ -106,6 +118,7 @@ def test_canonical_prompt_controls_are_equal_except_evidence():
         assert controls['requested_duration_seconds'] == case['requested_duration_seconds']
         assert controls['user_request'] == case['user_request']
         assert 'retrieval method' in result['canonical_prompt'].lower()
+    assert len({result['prompt_template_hash'] for result in results}) == 1
 
 
 def test_all_methods_use_same_context_budget():
@@ -177,3 +190,182 @@ def test_run_generation_evaluation_all_cases_mock_mode():
     }
     for metrics in report['summary'].values():
         assert metrics['all_within_context_budget'] is True
+
+
+def test_mock_mode_remains_default():
+    report = evaluator.run_generation_evaluation(method_names=[LIGHTRAG_RETRIEVAL_METHOD])
+
+    assert report['generation_mode'] == evaluator.GENERATION_MODE_MOCK
+    assert report['real_llm_called'] is False
+    assert report['provider'] is None
+    assert report['model'] is None
+
+
+def test_preflight_performs_no_provider_call(monkeypatch, tmp_path):
+    monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError('generate_text should not be called during preflight')
+
+    from services import llm_service
+
+    monkeypatch.setattr(llm_service, 'generate_text', fail_if_called)
+    output_path = evaluator.BACKEND_ROOT / 'reports' / 'rag_results' / 'test_preflight.json'
+
+    preflight = evaluator.preflight_real_generation(
+        method_names=None,
+        provider='gemini',
+        temperature=0,
+        max_tokens=2800,
+        output_path=output_path,
+    )
+
+    assert preflight['provider'] == 'gemini'
+    assert preflight['model'] == 'gemini-1.5-flash-latest'
+    assert preflight['expected_generation_count'] == 30
+    assert preflight['llm_called'] is False
+
+
+def test_real_mode_refuses_to_run_when_gemini_key_absent(monkeypatch):
+    monkeypatch.delenv('GOOGLE_AI_KEY', raising=False)
+
+    with pytest.raises(evaluator.GenerationConfigError) as exc_info:
+        evaluator.validate_generation_controls(
+            evaluator.GENERATION_MODE_REAL,
+            'gemini',
+            temperature=0,
+            max_tokens=2800,
+        )
+
+    assert 'GOOGLE_AI_KEY' in str(exc_info.value)
+
+
+def test_real_mode_rejects_unsupported_provider(monkeypatch):
+    monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
+
+    with pytest.raises(evaluator.GenerationConfigError) as exc_info:
+        evaluator.validate_generation_controls(
+            evaluator.GENERATION_MODE_REAL,
+            'unsupported_provider',
+            temperature=0,
+            max_tokens=2800,
+        )
+
+    assert 'Unsupported real-generation provider' in str(exc_info.value)
+
+
+def test_real_mode_preserves_same_generation_controls_across_methods():
+    case = evaluator.load_generation_cases()[2]
+
+    def fake_real_generation(prompt, case, evidence):
+        return f"REAL {case['target_language']} {len(evidence)}"
+
+    results = [
+        evaluator.evaluate_case_method(
+            case,
+            method_name,
+            generation_function=fake_real_generation,
+            generation_mode=evaluator.GENERATION_MODE_REAL,
+            provider='gemini',
+            model='gemini-1.5-flash-latest',
+            temperature=0,
+            max_tokens=2800,
+        )
+        for method_name in (
+            DENSE_RETRIEVAL_METHOD,
+            LIGHTRAG_RETRIEVAL_METHOD,
+            GRAPHRAG_RETRIEVAL_METHOD,
+        )
+    ]
+
+    assert {result['provider'] for result in results} == {'gemini'}
+    assert {result['model'] for result in results} == {'gemini-1.5-flash-latest'}
+    assert {result['temperature'] for result in results} == {0}
+    assert {result['max_tokens'] for result in results} == {2800}
+    assert {result['max_evidence_chunks'] for result in results} == {evaluator.MAX_EVIDENCE_CHUNKS}
+    assert {result['max_context_character_budget'] for result in results} == {
+        evaluator.MAX_EVIDENCE_CHARACTERS
+    }
+
+
+def test_retrieved_evidence_can_differ_while_shared_template_hash_matches():
+    case = evaluator.load_generation_cases()[7]
+    results = [
+        evaluator.evaluate_case_method(case, method_name)
+        for method_name in (
+            DENSE_RETRIEVAL_METHOD,
+            LIGHTRAG_RETRIEVAL_METHOD,
+            GRAPHRAG_RETRIEVAL_METHOD,
+        )
+    ]
+
+    evidence_sets = {
+        tuple(result['retrieved_source_documents'])
+        for result in results
+    }
+
+    assert len({result['prompt_template_hash'] for result in results}) == 1
+    assert len(evidence_sets) >= 1
+    assert {
+        evaluator.canonical_prompt_without_evidence(result['canonical_prompt'])
+        for result in results
+    } == {results[0]['prompt_controls']['template_without_evidence']}
+
+
+def test_real_result_schema_captures_generation_errors_without_secret_values():
+    case = evaluator.load_generation_cases()[0]
+
+    def failing_generation(prompt, case, evidence):
+        raise RuntimeError('GOOGLE_AI_KEY is not configured')
+
+    result = evaluator.evaluate_case_method(
+        case,
+        LIGHTRAG_RETRIEVAL_METHOD,
+        generation_function=failing_generation,
+        generation_mode=evaluator.GENERATION_MODE_REAL,
+        provider='gemini',
+        model='gemini-1.5-flash-latest',
+        temperature=0,
+        max_tokens=2800,
+    )
+
+    assert result['generated_speech'] == ''
+    assert result['generation_error'] == 'GOOGLE_AI_KEY is not configured'
+    assert result['provider'] == 'gemini'
+    assert result['prompt_template_hash']
+
+
+def test_real_generation_wrapper_calls_service_directly_and_restores_state(monkeypatch):
+    from services import llm_service
+
+    original_provider = llm_service.LLM_PROVIDER
+    original_model = llm_service.GEMINI_MODEL
+    captured = {}
+
+    def fake_generate_text(messages, max_tokens, temperature):
+        captured['messages'] = messages
+        captured['max_tokens'] = max_tokens
+        captured['temperature'] = temperature
+        captured['provider_during_call'] = llm_service.LLM_PROVIDER
+        captured['model_during_call'] = llm_service.GEMINI_MODEL
+        return 'generated text'
+
+    monkeypatch.setattr(llm_service, 'generate_text', fake_generate_text)
+    generator = evaluator.real_generation_function_factory(
+        provider='gemini',
+        temperature=0,
+        max_tokens=2800,
+        model_override='gemini-test-model',
+    )
+
+    output = generator('Prompt body', {'target_language': 'en'}, [])
+
+    assert output == 'generated text'
+    assert captured['provider_during_call'] == 'gemini'
+    assert captured['model_during_call'] == 'gemini-test-model'
+    assert captured['max_tokens'] == 2800
+    assert captured['temperature'] == 0
+    assert captured['messages'][0]['role'] == 'system'
+    assert captured['messages'][1] == {'role': 'user', 'content': 'Prompt body'}
+    assert llm_service.LLM_PROVIDER == original_provider
+    assert llm_service.GEMINI_MODEL == original_model
