@@ -17,9 +17,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
+from dotenv import load_dotenv
 
-BACKEND_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = BACKEND_ROOT.parent
+
+def resolve_repository_root(script_file: str | Path = __file__) -> Path:
+    return Path(script_file).resolve().parents[2]
+
+
+REPO_ROOT = resolve_repository_root()
+BACKEND_ROOT = REPO_ROOT / 'backend'
 PHASE3_FIXTURE_DIR = BACKEND_ROOT / 'tests' / 'fixtures' / 'rag_phase3'
 PHASE3_CASES_PATH = PHASE3_FIXTURE_DIR / 'generation_cases.json'
 DEFAULT_OUTPUT_PATH = BACKEND_ROOT / 'reports' / 'rag_results' / 'phase3_generation_mock_results.json'
@@ -40,6 +46,17 @@ SUPPORTED_REAL_PROVIDERS = {
         'model': 'gemini-1.5-flash-latest',
     },
 }
+
+
+def load_evaluator_dotenv(repo_root: Path = REPO_ROOT) -> bool:
+    dotenv_path = repo_root / '.env'
+    if not dotenv_path.exists():
+        return False
+    load_dotenv(dotenv_path, override=False)
+    return True
+
+
+load_evaluator_dotenv()
 
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
@@ -334,6 +351,7 @@ def preflight_real_generation(
     output_path: Path,
     model_override: str | None = None,
 ) -> dict:
+    load_evaluator_dotenv()
     cases = load_generation_cases()
     for case in cases:
         validate_case_schema(case)

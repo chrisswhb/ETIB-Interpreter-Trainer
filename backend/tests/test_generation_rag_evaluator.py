@@ -201,6 +201,77 @@ def test_mock_mode_remains_default():
     assert report['model'] is None
 
 
+def test_repository_root_resolution_is_independent_of_current_working_directory(monkeypatch, tmp_path):
+    repo_root = tmp_path / 'repo'
+    script_path = repo_root / 'backend' / 'scripts' / 'evaluate_generation_rag.py'
+    script_path.parent.mkdir(parents=True)
+    script_path.write_text('# placeholder', encoding='utf-8')
+    unrelated_dir = tmp_path / 'elsewhere'
+    unrelated_dir.mkdir()
+
+    monkeypatch.chdir(unrelated_dir)
+
+    assert evaluator.resolve_repository_root(script_path) == repo_root
+
+
+def test_load_evaluator_dotenv_uses_root_env_without_overriding_shell(monkeypatch, tmp_path):
+    repo_root = tmp_path / 'repo'
+    repo_root.mkdir()
+    dotenv_path = repo_root / '.env'
+    dotenv_path.write_text('GOOGLE_AI_KEY=from_dotenv_for_test_only\n', encoding='utf-8')
+    calls = []
+
+    def fake_load_dotenv(path, override):
+        calls.append((path, override))
+        if override is False and not evaluator.os.getenv('GOOGLE_AI_KEY'):
+            monkeypatch.setenv('GOOGLE_AI_KEY', 'from_dotenv_for_test_only')
+
+    monkeypatch.delenv('GOOGLE_AI_KEY', raising=False)
+    monkeypatch.setattr(evaluator, 'load_dotenv', fake_load_dotenv)
+
+    assert evaluator.load_evaluator_dotenv(repo_root) is True
+    assert calls == [(dotenv_path, False)]
+    assert evaluator.os.getenv('GOOGLE_AI_KEY') == 'from_dotenv_for_test_only'
+
+    monkeypatch.setenv('GOOGLE_AI_KEY', 'from_shell_for_test_only')
+    evaluator.load_evaluator_dotenv(repo_root)
+    assert evaluator.os.getenv('GOOGLE_AI_KEY') == 'from_shell_for_test_only'
+
+
+def test_preflight_attempts_dotenv_before_provider_validation(monkeypatch):
+    calls = []
+
+    def fake_load_evaluator_dotenv():
+        calls.append('loaded')
+        monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
+        return True
+
+    monkeypatch.delenv('GOOGLE_AI_KEY', raising=False)
+    monkeypatch.setattr(evaluator, 'load_evaluator_dotenv', fake_load_evaluator_dotenv)
+
+    preflight = evaluator.preflight_real_generation(
+        method_names=[LIGHTRAG_RETRIEVAL_METHOD],
+        provider='gemini',
+        temperature=0,
+        max_tokens=2800,
+        output_path=evaluator.BACKEND_ROOT / 'reports' / 'rag_results' / 'test_preflight.json',
+    )
+
+    assert calls == ['loaded']
+    assert preflight['expected_generation_count'] == 10
+    assert preflight['llm_called'] is False
+
+
+def test_mock_mode_does_not_require_google_key(monkeypatch):
+    monkeypatch.delenv('GOOGLE_AI_KEY', raising=False)
+
+    report = evaluator.run_generation_evaluation(method_names=[GRAPHRAG_RETRIEVAL_METHOD])
+
+    assert report['generation_mode'] == evaluator.GENERATION_MODE_MOCK
+    assert report['result_count'] == 10
+    assert report['real_llm_called'] is False
+
+
 def test_preflight_performs_no_provider_call(monkeypatch, tmp_path):
     monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
 
