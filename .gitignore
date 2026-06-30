@@ -18,6 +18,7 @@ build/
 # Generated files (not committed — too large)
 audio_outputs/
 uploads/
+backend/reports/rag_results/*.json
 *.mp3
 *.wav
 *.m4a
