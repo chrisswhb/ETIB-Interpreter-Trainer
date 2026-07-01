@@ -1,4 +1,5 @@
 """Tests for the Phase 3 RAG speech-generation evaluator harness."""
+import json
 from pathlib import Path
 import sys
 
@@ -364,6 +365,55 @@ def test_preflight_performs_no_provider_call(monkeypatch, tmp_path):
     assert preflight['model'] == 'gemini-1.5-flash-latest'
     assert preflight['expected_generation_count'] == 30
     assert preflight['llm_called'] is False
+
+
+def test_report_output_path_display_handles_relative_and_absolute_paths():
+    relative_path = Path('backend/reports/rag_results/path_regression.json')
+    absolute_path = evaluator.REPO_ROOT / relative_path
+
+    assert evaluator.display_report_output_path(relative_path) == str(relative_path)
+    assert evaluator.display_report_output_path(absolute_path) == str(relative_path)
+
+
+def test_validate_relative_output_path_is_independent_of_cwd(monkeypatch, tmp_path):
+    unrelated_dir = tmp_path / 'elsewhere'
+    unrelated_dir.mkdir()
+    monkeypatch.chdir(unrelated_dir)
+
+    evaluator.validate_output_path(Path('backend/reports/rag_results/path_regression.json'))
+
+
+def test_mock_write_reports_output_path_without_crashing(monkeypatch, capsys):
+    output_path = Path('backend/reports/rag_results/phase3_mock_write_path_regression_pytest.json')
+    resolved_output = evaluator.resolve_report_output_path(output_path)
+    if resolved_output.exists():
+        resolved_output.unlink()
+
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        [
+            'evaluate_generation_rag.py',
+            '--generation-mode',
+            'mock',
+            '--case-id',
+            'single_doc_exact_climate_en',
+            '--method',
+            DENSE_RETRIEVAL_METHOD,
+            '--output',
+            str(output_path),
+            '--write',
+        ],
+    )
+
+    assert evaluator.main() == 0
+
+    captured = capsys.readouterr().out
+    assert 'Report: backend' in captured
+    assert resolved_output.exists()
+    report = json.loads(resolved_output.read_text(encoding='utf-8'))
+    assert report['case_count'] == 1
+    assert report['result_count'] == 1
 
 
 def test_real_mode_refuses_to_run_when_gemini_key_absent(monkeypatch):

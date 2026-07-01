@@ -396,8 +396,22 @@ def validate_generation_controls(
             )
 
 
+def resolve_report_output_path(output_path: Path) -> Path:
+    if output_path.is_absolute():
+        return output_path.resolve()
+    return (REPO_ROOT / output_path).resolve()
+
+
+def display_report_output_path(output_path: Path) -> str:
+    resolved = resolve_report_output_path(output_path)
+    try:
+        return str(resolved.relative_to(REPO_ROOT.resolve()))
+    except ValueError:
+        return str(resolved)
+
+
 def validate_output_path(output_path: Path) -> None:
-    resolved = output_path.resolve()
+    resolved = resolve_report_output_path(output_path)
     allowed_dir = (BACKEND_ROOT / 'reports' / 'rag_results').resolve()
     try:
         resolved.relative_to(allowed_dir)
@@ -446,7 +460,7 @@ def preflight_real_generation(
         'method_count': len(methods),
         'generations_per_case_method': 1,
         'expected_generation_count': len(cases) * len(methods),
-        'output_path': str(output_path.relative_to(REPO_ROOT)),
+        'output_path': display_report_output_path(output_path),
         'llm_called': False,
     }
 
@@ -801,12 +815,13 @@ def main() -> int:
         except GenerationConfigError as exc:
             print(f'Configuration error: {exc}', file=sys.stderr)
             return 2
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(
+        resolved_output = resolve_report_output_path(args.output)
+        resolved_output.parent.mkdir(parents=True, exist_ok=True)
+        resolved_output.write_text(
             json.dumps(report, ensure_ascii=False, indent=2),
             encoding='utf-8',
         )
-        print(f"\nReport: {args.output.relative_to(REPO_ROOT)}")
+        print(f"\nReport: {display_report_output_path(args.output)}")
 
     return 0
 
