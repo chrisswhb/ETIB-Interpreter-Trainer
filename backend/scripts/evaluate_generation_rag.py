@@ -308,11 +308,65 @@ def _configured_env_var(name: str) -> bool:
     return bool(value and not value.startswith('your_'))
 
 
+def normalize_gemini_model_id(model_id: str | None) -> str | None:
+    if not model_id:
+        return None
+    normalized = model_id.strip()
+    if normalized.startswith('models/'):
+        normalized = normalized.removeprefix('models/')
+    return normalized
+
+
 def resolved_provider_model(provider: str, model_override: str | None = None) -> str | None:
     provider_config = SUPPORTED_REAL_PROVIDERS.get(provider)
     if not provider_config:
         return model_override
-    return model_override or provider_config.get('model')
+    return normalize_gemini_model_id(model_override) or provider_config.get('model')
+
+
+def list_available_text_generation_models(provider: str) -> list[str]:
+    load_evaluator_dotenv()
+    validate_generation_controls(GENERATION_MODE_REAL, provider, DEFAULT_REAL_TEMPERATURE, DEFAULT_REAL_MAX_TOKENS)
+    if provider != 'gemini':
+        raise GenerationConfigError(f"Model discovery is not supported for provider '{provider}'.")
+
+    import requests
+
+    key = os.getenv(SUPPORTED_REAL_PROVIDERS[provider]['required_env'], '').strip()
+    response = requests.get(
+        'https://generativelanguage.googleapis.com/v1beta/models',
+        params={'key': key},
+        timeout=60,
+    )
+    if not response.ok:
+        body = response.text.strip().replace('\r', ' ').replace('\n', ' ')[:300]
+        raise GenerationConfigError(
+            f'Gemini model listing failed with HTTP {response.status_code}: {body or "<empty>"}'
+        )
+
+    data = response.json()
+    models = []
+    for model in data.get('models', []):
+        methods = set(model.get('supportedGenerationMethods', []))
+        model_name = normalize_gemini_model_id(model.get('name'))
+        if model_name and 'generateContent' in methods:
+            models.append(model_name)
+    return sorted(set(models))
+
+
+def validate_model_override(provider: str, model_override: str | None) -> str | None:
+    resolved_model = resolved_provider_model(provider, model_override)
+    if provider == 'gemini' and model_override:
+        available_models = list_available_text_generation_models(provider)
+        if not available_models:
+            raise GenerationConfigError('Gemini model listing returned no text-generation models.')
+        if resolved_model not in available_models:
+            available = ', '.join(available_models)
+            raise GenerationConfigError(
+                f"Gemini model '{resolved_model}' is not available for text generation. "
+                f'Available text-generation models: {available}'
+            )
+    return resolved_model
 
 
 def validate_generation_controls(
@@ -381,10 +435,11 @@ def preflight_real_generation(
         raise GenerationConfigError('services.llm_service could not be imported.') from exc
     if not callable(getattr(llm_service, 'generate_text', None)):
         raise GenerationConfigError('services.llm_service.generate_text is not callable.')
+    resolved_model = validate_model_override(provider, model_override)
 
     return {
         'provider': provider,
-        'model': resolved_provider_model(provider, model_override),
+        'model': resolved_model,
         'temperature': temperature,
         'max_tokens': max_tokens,
         'case_count': len(cases),
@@ -410,7 +465,7 @@ def real_generation_function_factory(
         try:
             llm_service.LLM_PROVIDER = provider
             if provider == 'gemini' and model_override:
-                llm_service.GEMINI_MODEL = model_override
+                llm_service.GEMINI_MODEL = normalize_gemini_model_id(model_override)
             return llm_service.generate_text(
                 messages=[
                     {
@@ -565,7 +620,7 @@ def run_generation_evaluation(
     generation_function = mock_generation_function
     resolved_model = None
     if generation_mode == GENERATION_MODE_REAL:
-        resolved_model = resolved_provider_model(provider or '', model)
+        resolved_model = validate_model_override(provider or '', model)
         generation_function = real_generation_function_factory(
             provider=provider or '',
             temperature=temperature,
@@ -667,11 +722,22 @@ def main() -> int:
     parser.add_argument('--max-tokens', type=int, default=DEFAULT_REAL_MAX_TOKENS)
     parser.add_argument('--output', type=Path, default=DEFAULT_OUTPUT_PATH)
     parser.add_argument('--preflight', action='store_true', help='Validate real-generation setup without calling a provider.')
+    parser.add_argument('--list-available-models', action='store_true', help='List text-generation models for the selected provider without generating.')
     parser.add_argument('--allow-real-dense', action='store_true')
     parser.add_argument('--write', action='store_true', help='Write JSON report to backend/reports/rag_results.')
     args = parser.parse_args()
 
     try:
+        if args.list_available_models:
+            models = list_available_text_generation_models(args.provider)
+            if models:
+                print('Available text-generation models:')
+                for model in models:
+                    print(f'- {model}')
+            else:
+                print('No text-generation models were returned.')
+            return 0
+
         if args.preflight:
             preflight = preflight_real_generation(
                 method_names=args.method,

@@ -509,3 +509,137 @@ def test_real_generation_wrapper_calls_service_directly_and_restores_state(monke
     assert captured['messages'][1] == {'role': 'user', 'content': 'Prompt body'}
     assert llm_service.LLM_PROVIDER == original_provider
     assert llm_service.GEMINI_MODEL == original_model
+
+
+def test_gemini_model_listing_filters_text_generation_models(monkeypatch):
+    class FakeResponse:
+        ok = True
+        status_code = 200
+        text = ''
+
+        def json(self):
+            return {
+                'models': [
+                    {
+                        'name': 'models/gemini-2.0-flash',
+                        'supportedGenerationMethods': ['generateContent', 'countTokens'],
+                    },
+                    {
+                        'name': 'models/embedding-001',
+                        'supportedGenerationMethods': ['embedContent'],
+                    },
+                    {
+                        'name': 'models/gemini-1.5-flash',
+                        'supportedGenerationMethods': ['generateContent'],
+                    },
+                ]
+            }
+
+    captured = {}
+
+    def fake_get(url, params, timeout):
+        captured['called'] = True
+        captured['has_key_param'] = 'key' in params
+        captured['timeout'] = timeout
+        return FakeResponse()
+
+    import requests
+
+    monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
+    monkeypatch.setattr(requests, 'get', fake_get)
+
+    models = evaluator.list_available_text_generation_models('gemini')
+
+    assert captured == {'called': True, 'has_key_param': True, 'timeout': 60}
+    assert models == ['gemini-1.5-flash', 'gemini-2.0-flash']
+
+
+def test_list_available_models_cli_does_not_invoke_generation(monkeypatch, capsys):
+    def fail_generation_factory(*args, **kwargs):
+        raise AssertionError('generation should not be configured for listing')
+
+    monkeypatch.setattr(
+        evaluator,
+        'list_available_text_generation_models',
+        lambda provider: ['gemini-2.0-flash'],
+    )
+    monkeypatch.setattr(evaluator, 'real_generation_function_factory', fail_generation_factory)
+    monkeypatch.setattr(
+        sys,
+        'argv',
+        ['evaluate_generation_rag.py', '--provider', 'gemini', '--list-available-models'],
+    )
+
+    assert evaluator.main() == 0
+
+    output = capsys.readouterr().out
+    assert 'Available text-generation models:' in output
+    assert 'gemini-2.0-flash' in output
+
+
+def test_model_override_is_validated_and_carried_to_real_generation(monkeypatch):
+    captured = {}
+
+    def fake_factory(provider, temperature, max_tokens, model_override=None):
+        captured['provider'] = provider
+        captured['temperature'] = temperature
+        captured['max_tokens'] = max_tokens
+        captured['model_override'] = model_override
+        return lambda prompt, case, evidence: 'real output'
+
+    monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
+    monkeypatch.setattr(
+        evaluator,
+        'list_available_text_generation_models',
+        lambda provider: ['gemini-2.0-flash'],
+    )
+    monkeypatch.setattr(evaluator, 'real_generation_function_factory', fake_factory)
+
+    report = evaluator.run_generation_evaluation(
+        method_names=[LIGHTRAG_RETRIEVAL_METHOD],
+        case_id='single_doc_exact_climate_en',
+        generation_mode=evaluator.GENERATION_MODE_REAL,
+        provider='gemini',
+        model='models/gemini-2.0-flash',
+        temperature=0,
+        max_tokens=2800,
+    )
+
+    assert captured == {
+        'provider': 'gemini',
+        'temperature': 0,
+        'max_tokens': 2800,
+        'model_override': 'models/gemini-2.0-flash',
+    }
+    assert report['model'] == 'gemini-2.0-flash'
+    assert report['results'][0]['model'] == 'gemini-2.0-flash'
+    assert report['results'][0]['generated_speech'] == 'real output'
+
+
+def test_unavailable_model_override_fails_before_generation(monkeypatch):
+    def fail_generation_factory(*args, **kwargs):
+        raise AssertionError('generation should not start for an unavailable model')
+
+    monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
+    monkeypatch.setattr(
+        evaluator,
+        'list_available_text_generation_models',
+        lambda provider: ['gemini-2.0-flash'],
+    )
+    monkeypatch.setattr(evaluator, 'real_generation_function_factory', fail_generation_factory)
+
+    with pytest.raises(evaluator.GenerationConfigError) as exc_info:
+        evaluator.run_generation_evaluation(
+            method_names=[LIGHTRAG_RETRIEVAL_METHOD],
+            case_id='single_doc_exact_climate_en',
+            generation_mode=evaluator.GENERATION_MODE_REAL,
+            provider='gemini',
+            model='gemini-missing-model',
+            temperature=0,
+            max_tokens=2800,
+        )
+
+    message = str(exc_info.value)
+    assert "Gemini model 'gemini-missing-model' is not available" in message
+    assert 'gemini-2.0-flash' in message
+    assert 'configured-for-test-only' not in message

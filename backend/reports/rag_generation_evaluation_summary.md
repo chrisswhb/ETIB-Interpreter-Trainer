@@ -118,6 +118,11 @@ length, prompt template, language, requested duration, and context budget fixed
 for every retrieval method. The only intended variable is the retrieved
 evidence.
 
+Before running a real pilot, the evaluator can list Gemini text-generation
+models with `--list-available-models`. A pilot may then use `--model <model_id>`
+to select one discovered model for that evaluator process only. The override is
+not written to `.env` and does not change production provider logic.
+
 Hosted model output may still have minor non-determinism despite temperature 0.
 No final speech-quality conclusion is permitted until real outputs are
 generated and reviewed.
