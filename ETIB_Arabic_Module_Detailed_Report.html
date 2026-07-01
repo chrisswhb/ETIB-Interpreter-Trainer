@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>ETIB Arabic Module Detailed Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.55; max-width: 980px; margin: 32px auto; color: #1f2933; }
+    h1 { color: #17365d; }
+    h2 { color: #1f4e79; border-top: 1px solid #d6dde6; padding-top: 18px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0 24px; }
+    th, td { border: 1px solid #c9d3df; padding: 8px; vertical-align: top; }
+    th { background: #ddebf7; }
+    pre { background: #f6f8fa; padding: 14px; overflow-x: auto; border: 1px solid #d6dde6; }
+    .download { display: inline-block; background: #1f4e79; color: white; padding: 12px 18px; border-radius: 6px; text-decoration: none; font-weight: bold; }
+    .arabic { direction: rtl; font-family: Arial, sans-serif; font-size: 1.1em; }
+  </style>
+</head>
+<body>
+  <h1>ETIB Arabic Module: Pronunciation, Tashkeel and Tanween Error Detection</h1>
+  <p><a class="download" href="ETIB_Arabic_Module_Detailed_Report.docx" download>Download the Word report (.docx)</a></p>
+  <p><strong>Date:</strong> 30 June 2026</p>
+  <p><strong>Scope:</strong> Arabic evaluation component only: final tashkeel, i'rab, tanween, and pronunciation feedback.</p>
+
+  <h2>Architecture Summary</h2>
+  <p>The system uses a hybrid reference-guided architecture: Groq LLaMA diacritizes arbitrary Arabic text, Groq Whisper scores competing pronunciation hypotheses, and three local wav2vec2 Arabic models plus word-aware LLR provide backup acoustic evidence.</p>
+
+  <h2>Pipeline Diagram</h2>
+  <pre>[Browser UI]
+   |-- fixed exercise OR custom Arabic text
+   |-- microphone recording
+          |
+          v
+[FastAPI Backend]
+   |-- /api/diacritize: Groq LLaMA adds tashkeel
+   |-- /api/analyze: receives reference_text + audio
+          |
+          v
+[Audio Preparation]
+   WebM/Opus -> WAV -> 16 kHz mono
+          |
+          v
+[Parallel Evidence Extraction]
+   1. wav2vec2 model 1 transcript + logits
+   2. wav2vec2 model 2 transcript + logits
+   3. wav2vec2 model 3 transcript + logits
+   4. Groq Whisper hypothesis scores
+   5. Silero VAD delivery metrics
+          |
+          v
+[Arabic Ending Analyzer]
+   haraka extraction -> fuzzy matching -> tanween rules -> word-aware LLR
+          |
+          v
+[Decision Fusion]
+   weighted evidence + confidence caps + uncertainty handling
+          |
+          v
+[Frontend Result]
+   word-by-word findings + transcript + delivery metrics + debug details</pre>
+
+  <h2>Models</h2>
+  <table>
+    <tr><th>Model</th><th>Location / API</th><th>Role</th></tr>
+    <tr><td>jonatasgrosman/wav2vec2-large-xlsr-53-arabic</td><td>Desktop\etib_models\wav2vec2_jonatasgrosman_arabic</td><td>Arabic CTC ASR and logits</td></tr>
+    <tr><td>elgeish/wav2vec2-large-xlsr-53-arabic</td><td>Desktop\etib_models\wav2vec2_elgeish_arabic</td><td>Arabic CTC ASR and logits</td></tr>
+    <tr><td>KMFODA Arabic wav2vec2</td><td>Desktop\etib_models\wav2vec2_kmfoda_arabic</td><td>Arabic CTC ASR and logits</td></tr>
+    <tr><td>Silero VAD</td><td>Desktop\etib_models\silero-vad</td><td>Voice activity and pauses</td></tr>
+    <tr><td>Whisper large-v3 through Groq</td><td>Groq API</td><td>Reference-guided hypothesis scoring</td></tr>
+    <tr><td>llama-3.3-70b-versatile through Groq</td><td>Groq API</td><td>Arabic diacritization</td></tr>
+  </table>
+
+  <h2>Problems and Limitations</h2>
+  <ul>
+    <li>Arabic ASR usually omits harakat, so short vowels are difficult to prove acoustically.</li>
+    <li>Tanween may be normalized to bare words or long-vowel spellings.</li>
+    <li>Word timing is approximate; a true forced aligner would improve LLR.</li>
+    <li>Groq requires a valid API key and internet access.</li>
+    <li>Automatic diacritization should be reviewed for important grammar examples.</li>
+  </ul>
+
+  <h2>Accuracy Claim</h2>
+  <p>The realistic target is above 70% on clean, controlled recordings with fully diacritized reference text or Groq-assisted diacritization. A stable 80%+ on arbitrary Arabic text requires stronger alignment or training data.</p>
+</body>
+</html>

@@ -1,0 +1,11 @@
+.env
+*.pyc
+__pycache__/
+uvicorn.*.log
+venv/
+backend/venv/
+.agents/
+.vscode/
+.codex/
+*.log
+.DS_Store

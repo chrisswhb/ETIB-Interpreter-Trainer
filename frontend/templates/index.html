@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ETIB — تدريب الإعراب العربي</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header>
+  <div class="header-inner">
+    <h1>🎙️ ETIB</h1>
+    <p class="subtitle">منصة تدريب الترجمة والإعراب العربي — USJ Beyrouth</p>
+    <nav class="tabs">
+      <button class="tab active" data-tab="iraab">تدريب الإعراب</button>
+      <button class="tab" data-tab="translation">تقييم الترجمة</button>
+    </nav>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 1 — I'RAB EXERCISES                                                  -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<main id="tab-iraab" class="tab-content active">
+
+  <!-- Exercise selector -->
+  <section class="card" id="exercise-selector">
+    <h2>نص عربي مخصص</h2>
+    <p class="hint">ألصق أي جملة عربية مُشكّلة، ثم سجّل قراءتك لها. إذا كان النص بلا تشكيل فلن يعرف النظام الحركة الصحيحة إلا إذا أضفنا مُشكّلًا آليًا.</p>
+    <div class="form-group">
+      <label>الجملة المرجعية المُشكّلة</label>
+      <textarea id="custom-reference" rows="3" placeholder="مثال: ذَهَبْتُ إِلَى مَكْتَبِ الْمُدِيرِ" dir="rtl"></textarea>
+    </div>
+    <div class="custom-actions">
+      <button id="diacritize-btn" class="btn-ghost" type="button">شكّل النص تلقائيًا</button>
+      <span id="groq-status" class="status-note"></span>
+    </div>
+    <button id="custom-start-btn" class="btn-primary">ابدأ تدريبًا مخصصًا</button>
+
+    <h2 class="section-heading">أو اختر تمرينًا جاهزًا</h2>
+    <div id="exercise-list" class="exercise-grid">
+      <p class="loading">جارٍ تحميل التمارين…</p>
+    </div>
+  </section>
+
+  <!-- Active exercise -->
+  <section class="card" id="exercise-panel" style="display:none">
+    <div class="exercise-header">
+      <button id="back-btn" class="btn-ghost">← العودة</button>
+      <h2 id="exercise-title"></h2>
+    </div>
+
+    <p class="exercise-description" id="exercise-description"></p>
+
+    <!-- Reference sentence with focus word highlighting -->
+    <div class="reference-box" id="reference-box">
+      <label>الجملة المرجعية</label>
+      <div id="reference-display" class="arabic-text"></div>
+    </div>
+
+    <!-- Tip box -->
+    <div class="tip-box" id="tip-box">
+      <span class="tip-icon">💡</span>
+      <span id="exercise-tip"></span>
+    </div>
+
+    <!-- Recording controls -->
+    <div class="recorder-section">
+      <button id="record-btn" class="btn-record">
+        <span class="btn-icon">🎙️</span>
+        <span id="record-label">ابدأ التسجيل</span>
+      </button>
+      <div id="timer" class="timer" style="display:none">00:00</div>
+      <audio id="playback" controls style="display:none"></audio>
+    </div>
+
+    <!-- Analyze button -->
+    <button id="analyze-btn" class="btn-primary" style="display:none">
+      🔍 تحليل النطق
+    </button>
+
+    <div id="analyzing-spinner" class="spinner-wrap" style="display:none">
+      <div class="spinner"></div>
+      <p>جارٍ التحليل الصوتي…</p>
+    </div>
+
+    <!-- Results panel -->
+    <div id="results-panel" style="display:none">
+      <h3>نتائج التحليل</h3>
+
+      <!-- Per-word findings -->
+      <div id="word-findings"></div>
+
+      <!-- Delivery metrics -->
+      <div class="delivery-card" id="delivery-section">
+        <h4>مقاييس الأداء</h4>
+        <div id="delivery-metrics"></div>
+      </div>
+
+      <!-- Debug accordion -->
+      <details class="debug-details">
+        <summary>بيانات تقنية (debug)</summary>
+        <pre id="debug-json"></pre>
+      </details>
+    </div>
+  </section>
+
+</main>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 2 — TRANSLATION EVALUATION (Layer 1)                                 -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<main id="tab-translation" class="tab-content" style="display:none">
+
+  <section class="card">
+    <h2>تقييم الترجمة — الطبقة الأولى</h2>
+    <p class="hint">أدخل النص المصدر وترجمتك لتلقي تغذية راجعة تفصيلية.</p>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>لغة المصدر</label>
+        <select id="source-lang">
+          <option value="en">English</option>
+          <option value="fr">Français</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>لغة الهدف</label>
+        <select id="target-lang">
+          <option value="ar">العربية</option>
+          <option value="fr">Français</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>لغة التغذية الراجعة</label>
+        <select id="feedback-lang">
+          <option value="ar">العربية</option>
+          <option value="fr">Français</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>النص المصدر</label>
+      <textarea id="source-text" rows="4" placeholder="أدخل النص المصدر هنا…" dir="auto"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>ترجمة الطالب</label>
+      <textarea id="student-translation" rows="4" placeholder="أدخل الترجمة هنا…" dir="auto"></textarea>
+    </div>
+
+    <button id="evaluate-btn" class="btn-primary">
+      📝 تقييم الترجمة
+    </button>
+
+    <div id="eval-spinner" class="spinner-wrap" style="display:none">
+      <div class="spinner"></div>
+      <p>جارٍ التقييم…</p>
+    </div>
+
+    <div id="eval-results" style="display:none">
+      <div class="eval-summary card-inner" id="eval-summary"></div>
+      <div id="eval-segments"></div>
+      <div class="dimension-grid" id="dimension-summary"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ── Footer ─────────────────────────────────────────────────────────────── -->
+<footer>
+  <p>ETIB Interpreter Training Platform · Université Saint-Joseph de Beyrouth · 2026</p>
+</footer>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
