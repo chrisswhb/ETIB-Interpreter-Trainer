@@ -36,6 +36,8 @@ CHUNK_SIZE = 1200
 CHUNK_OVERLAP = 0
 GENERATION_MODE_MOCK = 'mock'
 GENERATION_MODE_REAL = 'real'
+DENSE_MODE_STUB = 'stub'
+DENSE_MODE_REAL = 'real'
 DEFAULT_REAL_PROVIDER = 'gemini'
 DEFAULT_REAL_TEMPERATURE = 0.0
 DEFAULT_REAL_MAX_TOKENS = 2800
@@ -64,7 +66,9 @@ if str(BACKEND_ROOT) not in sys.path:
 from utils.document_grounding import chunk_text, normalize_text, _tokenize  # noqa: E402
 from utils.embedding_retrieval import (  # noqa: E402
     DENSE_RETRIEVAL_METHOD,
+    DEFAULT_DENSE_MODEL_NAME,
     DenseEmbeddingUnavailable,
+    is_dense_embedding_available,
     select_relevant_chunks_dense_with_metadata,
 )
 from utils.graphrag_retrieval import (  # noqa: E402
@@ -202,10 +206,11 @@ def _select_scored_evidence(
 def retrieve_evidence(
     case: dict,
     method_name: str,
-    allow_real_dense: bool = False,
+    dense_mode: str = DENSE_MODE_STUB,
 ) -> tuple[list[dict], float, str]:
     if method_name not in RETRIEVAL_METHODS:
         raise ValueError(f'Unknown retrieval method: {method_name}')
+    validate_dense_mode(dense_mode)
 
     params = {
         'query': case['user_request'],
@@ -218,19 +223,33 @@ def retrieve_evidence(
     selector = method['selector']
     runtime = 'real'
 
-    if method_name == DENSE_RETRIEVAL_METHOD and not allow_real_dense:
+    if method_name == DENSE_RETRIEVAL_METHOD and dense_mode == DENSE_MODE_STUB:
         selector = deterministic_dense_stub_selector
         runtime = 'deterministic_stub'
+    elif method_name == DENSE_RETRIEVAL_METHOD:
+        ensure_real_dense_available()
+        selector = select_relevant_chunks_dense_with_metadata
 
     started = time.perf_counter()
     try:
-        evidence = selector(
-            records,
-            params,
-            max_excerpts=MAX_EVIDENCE_CHUNKS,
-            max_total_characters=MAX_EVIDENCE_CHARACTERS,
-        )
+        def select():
+            return selector(
+                records,
+                params,
+                max_excerpts=MAX_EVIDENCE_CHUNKS,
+                max_total_characters=MAX_EVIDENCE_CHARACTERS,
+            )
+
+        if method_name == DENSE_RETRIEVAL_METHOD and dense_mode == DENSE_MODE_REAL:
+            evidence = _with_offline_dense_environment(select)
+        else:
+            evidence = select()
     except DenseEmbeddingUnavailable:
+        if method_name == DENSE_RETRIEVAL_METHOD and dense_mode == DENSE_MODE_REAL:
+            raise GenerationConfigError(
+                'Real dense retrieval is unavailable and --dense-mode real forbids fallback. '
+                f'Model: {DEFAULT_DENSE_MODEL_NAME}.'
+            )
         evidence = deterministic_dense_stub_selector(
             records,
             params,
@@ -396,6 +415,38 @@ def validate_generation_controls(
             )
 
 
+def validate_dense_mode(dense_mode: str) -> None:
+    if dense_mode not in {DENSE_MODE_STUB, DENSE_MODE_REAL}:
+        raise GenerationConfigError(
+            f"Unsupported dense mode '{dense_mode}'. Use 'stub' or 'real'."
+        )
+
+
+def ensure_real_dense_available() -> None:
+    if not is_dense_embedding_available():
+        raise GenerationConfigError(
+            'Real dense retrieval requires sentence-transformers, which is unavailable. '
+            'Install optional RAG dependencies with backend/requirements-rag-optional.txt.'
+        )
+
+
+def _with_offline_dense_environment(callable_obj):
+    previous = {
+        'HF_HUB_OFFLINE': os.environ.get('HF_HUB_OFFLINE'),
+        'TRANSFORMERS_OFFLINE': os.environ.get('TRANSFORMERS_OFFLINE'),
+    }
+    os.environ['HF_HUB_OFFLINE'] = '1'
+    os.environ['TRANSFORMERS_OFFLINE'] = '1'
+    try:
+        return callable_obj()
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
 def resolve_report_output_path(output_path: Path) -> Path:
     if output_path.is_absolute():
         return output_path.resolve()
@@ -426,6 +477,7 @@ def validate_output_path(output_path: Path) -> None:
 def preflight_real_generation(
     method_names: list[str] | None,
     case_id: str | None,
+    dense_mode: str,
     provider: str,
     temperature: float,
     max_tokens: int,
@@ -441,6 +493,7 @@ def preflight_real_generation(
     if unknown_methods:
         raise GenerationConfigError(f'Unknown retrieval methods: {unknown_methods}')
     validate_generation_controls(GENERATION_MODE_REAL, provider, temperature, max_tokens)
+    validate_dense_mode(dense_mode)
     validate_output_path(output_path)
 
     try:
@@ -456,6 +509,7 @@ def preflight_real_generation(
         'model': resolved_model,
         'temperature': temperature,
         'max_tokens': max_tokens,
+        'dense_mode': dense_mode,
         'case_count': len(cases),
         'method_count': len(methods),
         'generations_per_case_method': 1,
@@ -510,7 +564,7 @@ def evaluate_case_method(
     method_name: str,
     generation_function: Callable[[str, dict, list[dict]], str] = mock_generation_function,
     generation_mode: str = GENERATION_MODE_MOCK,
-    allow_real_dense: bool = False,
+    dense_mode: str = DENSE_MODE_STUB,
     provider: str | None = None,
     model: str | None = None,
     temperature: float = DEFAULT_REAL_TEMPERATURE,
@@ -520,7 +574,7 @@ def evaluate_case_method(
     evidence, retrieval_latency_ms, retrieval_runtime = retrieve_evidence(
         case,
         method_name,
-        allow_real_dense=allow_real_dense,
+        dense_mode=dense_mode,
     )
     prompt = build_canonical_prompt(case, evidence)
     started = time.perf_counter()
@@ -538,6 +592,7 @@ def evaluate_case_method(
         'case_id': case['case_id'],
         'retrieval_method': method_name,
         'generation_mode': generation_mode,
+        'dense_mode': dense_mode,
         'provider': provider,
         'model': model,
         'temperature': temperature,
@@ -622,13 +677,14 @@ def run_generation_evaluation(
     method_names: list[str] | None = None,
     case_id: str | None = None,
     generation_mode: str = GENERATION_MODE_MOCK,
-    allow_real_dense: bool = False,
+    dense_mode: str = DENSE_MODE_STUB,
     provider: str | None = None,
     model: str | None = None,
     temperature: float = DEFAULT_REAL_TEMPERATURE,
     max_tokens: int = DEFAULT_REAL_MAX_TOKENS,
 ) -> dict:
     validate_generation_controls(generation_mode, provider, temperature, max_tokens)
+    validate_dense_mode(dense_mode)
     cases = select_generation_cases(load_generation_cases(), case_id)
     methods = method_names or list(RETRIEVAL_METHODS)
     generation_function = mock_generation_function
@@ -647,7 +703,7 @@ def run_generation_evaluation(
             method_name,
             generation_function=generation_function,
             generation_mode=generation_mode,
-            allow_real_dense=allow_real_dense,
+            dense_mode=dense_mode,
             provider=provider if generation_mode == GENERATION_MODE_REAL else None,
             model=resolved_model if generation_mode == GENERATION_MODE_REAL else None,
             temperature=temperature,
@@ -659,6 +715,7 @@ def run_generation_evaluation(
     return {
         'benchmark_name': 'phase3_end_to_end_speech_generation_rag',
         'generation_mode': generation_mode,
+        'dense_mode': dense_mode,
         'timestamp': datetime.now(timezone.utc).isoformat(),
         'method_names': methods,
         'case_id_filter': case_id,
@@ -688,6 +745,51 @@ def run_generation_evaluation(
                 else 'No Flask endpoint, frontend, or production router is used.'
             ),
         ],
+    }
+
+
+def evaluate_retrieval_only(
+    method_names: list[str] | None = None,
+    case_id: str | None = None,
+    dense_mode: str = DENSE_MODE_STUB,
+) -> dict:
+    validate_dense_mode(dense_mode)
+    cases = select_generation_cases(load_generation_cases(), case_id)
+    methods = method_names or list(RETRIEVAL_METHODS)
+    results = []
+    for case in cases:
+        validate_case_schema(case)
+        for method_name in methods:
+            evidence, retrieval_latency_ms, retrieval_runtime = retrieve_evidence(
+                case,
+                method_name,
+                dense_mode=dense_mode,
+            )
+            grounding = grounding_proxy(case, evidence)
+            results.append({
+                'case_id': case['case_id'],
+                'retrieval_method': method_name,
+                'dense_mode': dense_mode,
+                'retrieval_runtime': retrieval_runtime,
+                'ranked_source_documents': [chunk.get('source_filename') for chunk in evidence],
+                'chunk_count': len(evidence),
+                'evidence_character_count': sum(len(chunk.get('text', '')) for chunk in evidence),
+                'expected_source_coverage': grounding['expected_source_coverage'],
+                'key_claim_hit_rate': grounding['key_factual_claim_hit_rate'],
+                'relation_chain_hit_rate': grounding['relation_chain_hit_rate'],
+                'relation_terms_present': bool(grounding['relation_chain_hits']),
+                'retrieval_latency_ms': retrieval_latency_ms,
+            })
+    return {
+        'benchmark_name': 'phase3_retrieval_only_inspection',
+        'generation_mode': None,
+        'dense_mode': dense_mode,
+        'timestamp': datetime.now(timezone.utc).isoformat(),
+        'case_count': len(cases),
+        'method_names': methods,
+        'result_count': len(results),
+        'real_llm_called': False,
+        'results': results,
     }
 
 
@@ -737,9 +839,12 @@ def main() -> int:
     parser.add_argument('--output', type=Path, default=DEFAULT_OUTPUT_PATH)
     parser.add_argument('--preflight', action='store_true', help='Validate real-generation setup without calling a provider.')
     parser.add_argument('--list-available-models', action='store_true', help='List text-generation models for the selected provider without generating.')
-    parser.add_argument('--allow-real-dense', action='store_true')
+    parser.add_argument('--retrieval-only', action='store_true', help='Inspect retrieval evidence without generating text.')
+    parser.add_argument('--dense-mode', choices=[DENSE_MODE_STUB, DENSE_MODE_REAL], default=DENSE_MODE_STUB)
+    parser.add_argument('--allow-real-dense', action='store_true', help='Deprecated alias for --dense-mode real.')
     parser.add_argument('--write', action='store_true', help='Write JSON report to backend/reports/rag_results.')
     args = parser.parse_args()
+    dense_mode = DENSE_MODE_REAL if args.allow_real_dense else args.dense_mode
 
     try:
         if args.list_available_models:
@@ -756,6 +861,7 @@ def main() -> int:
             preflight = preflight_real_generation(
                 method_names=args.method,
                 case_id=args.case_id,
+                dense_mode=dense_mode,
                 provider=args.provider,
                 temperature=args.temperature,
                 max_tokens=args.max_tokens,
@@ -767,6 +873,7 @@ def main() -> int:
             print(f"Model: {preflight['model']}")
             print(f"Temperature: {preflight['temperature']}")
             print(f"Max tokens: {preflight['max_tokens']}")
+            print(f"Dense mode: {preflight['dense_mode']}")
             print(
                 f"Expected generations: {preflight['case_count']} cases x "
                 f"{preflight['method_count']} retrieval methods x "
@@ -777,22 +884,30 @@ def main() -> int:
             print('LLM called: false')
             return 0
 
-        report = run_generation_evaluation(
-            method_names=args.method,
-            case_id=args.case_id,
-            generation_mode=args.generation_mode,
-            allow_real_dense=args.allow_real_dense,
-            provider=args.provider if args.generation_mode == GENERATION_MODE_REAL else None,
-            model=args.model,
-            temperature=args.temperature,
-            max_tokens=args.max_tokens,
-        )
+        if args.retrieval_only:
+            report = evaluate_retrieval_only(
+                method_names=args.method,
+                case_id=args.case_id,
+                dense_mode=dense_mode,
+            )
+        else:
+            report = run_generation_evaluation(
+                method_names=args.method,
+                case_id=args.case_id,
+                generation_mode=args.generation_mode,
+                dense_mode=dense_mode,
+                provider=args.provider if args.generation_mode == GENERATION_MODE_REAL else None,
+                model=args.model,
+                temperature=args.temperature,
+                max_tokens=args.max_tokens,
+            )
     except GenerationConfigError as exc:
         print(f'Configuration error: {exc}', file=sys.stderr)
         return 2
 
     print(f"Benchmark: {report['benchmark_name']}")
     print(f"Generation mode: {report['generation_mode']}")
+    print(f"Dense mode: {report['dense_mode']}")
     if report['generation_mode'] == GENERATION_MODE_REAL:
         print(f"Provider: {report['provider']}")
         print(f"Model: {report['model']}")
@@ -800,14 +915,28 @@ def main() -> int:
         print(f"Max tokens: {report['max_tokens']}")
     print(f"Cases: {report['case_count']}")
     print(f"Results: {report['result_count']}")
-    for method_name, metrics in report['summary'].items():
-        print()
-        print(f"Method: {method_name}")
-        print(f"Average expected-source coverage: {metrics['average_expected_source_coverage']:.2f}")
-        print(f"Average key-claim hit rate: {metrics['average_key_claim_hit_rate']:.2f}")
-        print(f"Average relation-chain hit rate: {metrics['average_relation_chain_hit_rate']:.2f}")
-        print(f"Within context budget: {metrics['all_within_context_budget']}")
-        print(f"Retrieval runtimes: {', '.join(metrics['retrieval_runtimes'])}")
+    if args.retrieval_only:
+        for result in report['results']:
+            print()
+            print(f"Case: {result['case_id']}")
+            print(f"Method: {result['retrieval_method']}")
+            print(f"Dense mode: {result['dense_mode']}")
+            print(f"Ranked sources: {', '.join(result['ranked_source_documents'])}")
+            print(f"Chunk count: {result['chunk_count']}")
+            print(f"Evidence characters: {result['evidence_character_count']}")
+            print(f"Expected-source coverage: {result['expected_source_coverage']:.2f}")
+            print(f"Key-claim hit rate: {result['key_claim_hit_rate']:.2f}")
+            print(f"Relation-chain hit rate: {result['relation_chain_hit_rate']:.2f}")
+            print(f"Retrieval latency ms: {result['retrieval_latency_ms']:.2f}")
+    else:
+        for method_name, metrics in report['summary'].items():
+            print()
+            print(f"Method: {method_name}")
+            print(f"Average expected-source coverage: {metrics['average_expected_source_coverage']:.2f}")
+            print(f"Average key-claim hit rate: {metrics['average_key_claim_hit_rate']:.2f}")
+            print(f"Average relation-chain hit rate: {metrics['average_relation_chain_hit_rate']:.2f}")
+            print(f"Within context budget: {metrics['all_within_context_budget']}")
+            print(f"Retrieval runtimes: {', '.join(metrics['retrieval_runtimes'])}")
 
     if args.write:
         try:

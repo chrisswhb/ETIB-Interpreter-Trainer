@@ -123,6 +123,11 @@ models with `--list-available-models`. A pilot may then use `--model <model_id>`
 to select one discovered model for that evaluator process only. The override is
 not written to `.env` and does not change production provider logic.
 
+Dense retrieval is explicit in the evaluator: `--dense-mode stub` keeps the
+fast deterministic stand-in, while `--dense-mode real` uses the local dense
+multilingual embedding retriever and fails rather than silently falling back if
+the optional model/runtime is unavailable.
+
 Hosted model output may still have minor non-determinism despite temperature 0.
 No final speech-quality conclusion is permitted until real outputs are
 generated and reviewed.

@@ -11,7 +11,7 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from scripts import evaluate_generation_rag as evaluator  # noqa: E402
-from utils.embedding_retrieval import DENSE_RETRIEVAL_METHOD  # noqa: E402
+from utils.embedding_retrieval import DENSE_RETRIEVAL_METHOD, DenseEmbeddingUnavailable  # noqa: E402
 from utils.graphrag_retrieval import GRAPHRAG_RETRIEVAL_METHOD  # noqa: E402
 from utils.lightrag_retrieval import LIGHTRAG_RETRIEVAL_METHOD  # noqa: E402
 
@@ -104,6 +104,7 @@ def test_each_method_produces_required_output_shape():
             'generated_speech',
             'generation_error',
             'generation_mode',
+            'dense_mode',
             'provider',
             'model',
             'temperature',
@@ -119,6 +120,7 @@ def test_each_method_produces_required_output_shape():
         assert result['case_id'] == case['case_id']
         assert result['retrieval_method'] == method_name
         assert result['generation_mode'] == evaluator.GENERATION_MODE_MOCK
+        assert result['dense_mode'] == evaluator.DENSE_MODE_STUB
         assert result['provider'] is None
         assert result['model'] is None
         assert result['generation_error'] is None
@@ -211,6 +213,7 @@ def test_run_generation_evaluation_all_cases_mock_mode():
 
     assert report['benchmark_name'] == 'phase3_end_to_end_speech_generation_rag'
     assert report['generation_mode'] == evaluator.GENERATION_MODE_MOCK
+    assert report['dense_mode'] == evaluator.DENSE_MODE_STUB
     assert report['case_count'] == 10
     assert report['result_count'] == 30
     assert report['real_llm_called'] is False
@@ -297,6 +300,7 @@ def test_preflight_attempts_dotenv_before_provider_validation(monkeypatch):
     preflight = evaluator.preflight_real_generation(
         method_names=[LIGHTRAG_RETRIEVAL_METHOD],
         case_id=None,
+        dense_mode=evaluator.DENSE_MODE_STUB,
         provider='gemini',
         temperature=0,
         max_tokens=2800,
@@ -319,6 +323,7 @@ def test_preflight_with_case_id_and_method_reports_one_generation(monkeypatch):
     preflight = evaluator.preflight_real_generation(
         method_names=[DENSE_RETRIEVAL_METHOD],
         case_id='single_doc_exact_climate_en',
+        dense_mode=evaluator.DENSE_MODE_STUB,
         provider='gemini',
         temperature=0,
         max_tokens=2800,
@@ -355,6 +360,7 @@ def test_preflight_performs_no_provider_call(monkeypatch, tmp_path):
     preflight = evaluator.preflight_real_generation(
         method_names=None,
         case_id=None,
+        dense_mode=evaluator.DENSE_MODE_STUB,
         provider='gemini',
         temperature=0,
         max_tokens=2800,
@@ -693,3 +699,119 @@ def test_unavailable_model_override_fails_before_generation(monkeypatch):
     assert "Gemini model 'gemini-missing-model' is not available" in message
     assert 'gemini-2.0-flash' in message
     assert 'configured-for-test-only' not in message
+
+
+def test_default_dense_mode_remains_stub():
+    case = evaluator.load_generation_cases()[0]
+
+    evidence, _latency, runtime = evaluator.retrieve_evidence(
+        case,
+        DENSE_RETRIEVAL_METHOD,
+    )
+
+    assert runtime == 'deterministic_stub'
+    assert evidence
+
+
+def test_dense_mode_real_calls_real_dense_adapter(monkeypatch):
+    case = evaluator.load_generation_cases()[0]
+    calls = []
+
+    def fake_dense_selector(records, params, max_excerpts, max_total_characters):
+        calls.append({
+            'record_count': len(records),
+            'query': params['query'],
+            'max_excerpts': max_excerpts,
+            'max_total_characters': max_total_characters,
+        })
+        return [{
+            'text': records[0]['text'],
+            'source_filename': records[0]['source_filename'],
+            'source_type': records[0]['source_type'],
+            'chunk_index': records[0]['chunk_index'],
+            'score': 0.99,
+            'retrieval_method': DENSE_RETRIEVAL_METHOD,
+        }]
+
+    monkeypatch.setattr(evaluator, 'is_dense_embedding_available', lambda: True)
+    monkeypatch.setattr(evaluator, 'select_relevant_chunks_dense_with_metadata', fake_dense_selector)
+
+    evidence, _latency, runtime = evaluator.retrieve_evidence(
+        case,
+        DENSE_RETRIEVAL_METHOD,
+        dense_mode=evaluator.DENSE_MODE_REAL,
+    )
+
+    assert runtime == 'real'
+    assert calls == [{
+        'record_count': 1,
+        'query': case['user_request'],
+        'max_excerpts': evaluator.MAX_EVIDENCE_CHUNKS,
+        'max_total_characters': evaluator.MAX_EVIDENCE_CHARACTERS,
+    }]
+    assert evidence[0]['retrieval_method'] == DENSE_RETRIEVAL_METHOD
+
+
+def test_dense_mode_real_fails_without_fallback_when_unavailable(monkeypatch):
+    case = evaluator.load_generation_cases()[0]
+
+    monkeypatch.setattr(evaluator, 'is_dense_embedding_available', lambda: True)
+
+    def unavailable(*args, **kwargs):
+        raise DenseEmbeddingUnavailable('model unavailable')
+
+    monkeypatch.setattr(evaluator, 'select_relevant_chunks_dense_with_metadata', unavailable)
+
+    with pytest.raises(evaluator.GenerationConfigError) as exc_info:
+        evaluator.retrieve_evidence(
+            case,
+            DENSE_RETRIEVAL_METHOD,
+            dense_mode=evaluator.DENSE_MODE_REAL,
+        )
+
+    assert 'forbids fallback' in str(exc_info.value)
+
+
+def test_retrieval_only_never_invokes_generation(monkeypatch):
+    def fail_generation_factory(*args, **kwargs):
+        raise AssertionError('retrieval-only should not configure generation')
+
+    monkeypatch.setattr(evaluator, 'real_generation_function_factory', fail_generation_factory)
+
+    report = evaluator.evaluate_retrieval_only(
+        method_names=[LIGHTRAG_RETRIEVAL_METHOD],
+        case_id='single_doc_exact_climate_en',
+        dense_mode=evaluator.DENSE_MODE_STUB,
+    )
+
+    assert report['real_llm_called'] is False
+    assert report['result_count'] == 1
+    assert report['results'][0]['retrieval_method'] == LIGHTRAG_RETRIEVAL_METHOD
+
+
+def test_retrieval_only_stub_dense_selected_case_metadata():
+    report = evaluator.evaluate_retrieval_only(
+        method_names=[DENSE_RETRIEVAL_METHOD],
+        case_id='broad_synthesis_humanitarian_speech',
+        dense_mode=evaluator.DENSE_MODE_STUB,
+    )
+
+    result = report['results'][0]
+    assert result['case_id'] == 'broad_synthesis_humanitarian_speech'
+    assert result['retrieval_method'] == DENSE_RETRIEVAL_METHOD
+    assert result['dense_mode'] == evaluator.DENSE_MODE_STUB
+    assert result['ranked_source_documents']
+    assert result['chunk_count'] > 0
+    assert result['evidence_character_count'] > 0
+
+
+def test_generation_result_metadata_includes_dense_mode():
+    case = evaluator.load_generation_cases()[0]
+
+    result = evaluator.evaluate_case_method(
+        case,
+        DENSE_RETRIEVAL_METHOD,
+        dense_mode=evaluator.DENSE_MODE_STUB,
+    )
+
+    assert result['dense_mode'] == evaluator.DENSE_MODE_STUB
