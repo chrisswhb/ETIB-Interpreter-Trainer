@@ -53,6 +53,36 @@ def test_phase3_fixture_schema_and_case_count():
         assert case['target_language'] in {'en', 'fr', 'ar'}
 
 
+def test_select_generation_cases_default_returns_all_cases():
+    cases = evaluator.load_generation_cases()
+
+    selected = evaluator.select_generation_cases(cases)
+
+    assert len(selected) == 10
+    assert selected == cases
+
+
+def test_select_generation_cases_valid_case_id_returns_one_case():
+    cases = evaluator.load_generation_cases()
+
+    selected = evaluator.select_generation_cases(cases, 'single_doc_exact_climate_en')
+
+    assert len(selected) == 1
+    assert selected[0]['case_id'] == 'single_doc_exact_climate_en'
+
+
+def test_select_generation_cases_invalid_case_id_fails_safely():
+    cases = evaluator.load_generation_cases()
+
+    with pytest.raises(evaluator.GenerationConfigError) as exc_info:
+        evaluator.select_generation_cases(cases, 'not_a_real_case')
+
+    message = str(exc_info.value)
+    assert "Unknown case_id 'not_a_real_case'" in message
+    assert 'single_doc_exact_climate_en' in message
+    assert 'climate mitigation measures' not in message
+
+
 def test_each_method_produces_required_output_shape():
     case = evaluator.load_generation_cases()[0]
 
@@ -192,6 +222,20 @@ def test_run_generation_evaluation_all_cases_mock_mode():
         assert metrics['all_within_context_budget'] is True
 
 
+def test_run_generation_evaluation_case_id_and_method_produces_one_result():
+    report = evaluator.run_generation_evaluation(
+        method_names=[DENSE_RETRIEVAL_METHOD],
+        case_id='single_doc_exact_climate_en',
+    )
+
+    assert report['case_count'] == 1
+    assert report['result_count'] == 1
+    assert report['case_id_filter'] == 'single_doc_exact_climate_en'
+    assert report['method_names'] == [DENSE_RETRIEVAL_METHOD]
+    assert report['results'][0]['case_id'] == 'single_doc_exact_climate_en'
+    assert report['results'][0]['retrieval_method'] == DENSE_RETRIEVAL_METHOD
+
+
 def test_mock_mode_remains_default():
     report = evaluator.run_generation_evaluation(method_names=[LIGHTRAG_RETRIEVAL_METHOD])
 
@@ -251,6 +295,7 @@ def test_preflight_attempts_dotenv_before_provider_validation(monkeypatch):
 
     preflight = evaluator.preflight_real_generation(
         method_names=[LIGHTRAG_RETRIEVAL_METHOD],
+        case_id=None,
         provider='gemini',
         temperature=0,
         max_tokens=2800,
@@ -259,6 +304,29 @@ def test_preflight_attempts_dotenv_before_provider_validation(monkeypatch):
 
     assert calls == ['loaded']
     assert preflight['expected_generation_count'] == 10
+    assert preflight['llm_called'] is False
+
+
+def test_preflight_with_case_id_and_method_reports_one_generation(monkeypatch):
+    def fake_load_evaluator_dotenv():
+        monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
+        return True
+
+    monkeypatch.delenv('GOOGLE_AI_KEY', raising=False)
+    monkeypatch.setattr(evaluator, 'load_evaluator_dotenv', fake_load_evaluator_dotenv)
+
+    preflight = evaluator.preflight_real_generation(
+        method_names=[DENSE_RETRIEVAL_METHOD],
+        case_id='single_doc_exact_climate_en',
+        provider='gemini',
+        temperature=0,
+        max_tokens=2800,
+        output_path=evaluator.BACKEND_ROOT / 'reports' / 'rag_results' / 'test_preflight.json',
+    )
+
+    assert preflight['case_count'] == 1
+    assert preflight['method_count'] == 1
+    assert preflight['expected_generation_count'] == 1
     assert preflight['llm_called'] is False
 
 
@@ -285,6 +353,7 @@ def test_preflight_performs_no_provider_call(monkeypatch, tmp_path):
 
     preflight = evaluator.preflight_real_generation(
         method_names=None,
+        case_id=None,
         provider='gemini',
         temperature=0,
         max_tokens=2800,

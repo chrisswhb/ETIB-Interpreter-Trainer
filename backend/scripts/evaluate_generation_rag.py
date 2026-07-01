@@ -101,6 +101,18 @@ def load_generation_cases(cases_path: Path = PHASE3_CASES_PATH) -> list[dict]:
     return json.loads(cases_path.read_text(encoding='utf-8'))
 
 
+def select_generation_cases(cases: list[dict], case_id: str | None = None) -> list[dict]:
+    if not case_id:
+        return cases
+    selected = [case for case in cases if case.get('case_id') == case_id]
+    if selected:
+        return selected
+    available = ', '.join(case.get('case_id', '<missing>') for case in cases)
+    raise GenerationConfigError(
+        f"Unknown case_id '{case_id}'. Available case IDs: {available}"
+    )
+
+
 def validate_case_schema(case: dict) -> None:
     required_fields = {
         'case_id',
@@ -345,6 +357,7 @@ def validate_output_path(output_path: Path) -> None:
 
 def preflight_real_generation(
     method_names: list[str] | None,
+    case_id: str | None,
     provider: str,
     temperature: float,
     max_tokens: int,
@@ -352,7 +365,7 @@ def preflight_real_generation(
     model_override: str | None = None,
 ) -> dict:
     load_evaluator_dotenv()
-    cases = load_generation_cases()
+    cases = select_generation_cases(load_generation_cases(), case_id)
     for case in cases:
         validate_case_schema(case)
     methods = method_names or list(RETRIEVAL_METHODS)
@@ -538,6 +551,7 @@ def matching_terms(text: str, terms: list[str]) -> list[str]:
 
 def run_generation_evaluation(
     method_names: list[str] | None = None,
+    case_id: str | None = None,
     generation_mode: str = GENERATION_MODE_MOCK,
     allow_real_dense: bool = False,
     provider: str | None = None,
@@ -546,7 +560,7 @@ def run_generation_evaluation(
     max_tokens: int = DEFAULT_REAL_MAX_TOKENS,
 ) -> dict:
     validate_generation_controls(generation_mode, provider, temperature, max_tokens)
-    cases = load_generation_cases()
+    cases = select_generation_cases(load_generation_cases(), case_id)
     methods = method_names or list(RETRIEVAL_METHODS)
     generation_function = mock_generation_function
     resolved_model = None
@@ -578,6 +592,7 @@ def run_generation_evaluation(
         'generation_mode': generation_mode,
         'timestamp': datetime.now(timezone.utc).isoformat(),
         'method_names': methods,
+        'case_id_filter': case_id,
         'provider': provider if generation_mode == GENERATION_MODE_REAL else None,
         'model': resolved_model if generation_mode == GENERATION_MODE_REAL else None,
         'temperature': temperature,
@@ -644,6 +659,7 @@ def _average(values) -> float:
 def main() -> int:
     parser = argparse.ArgumentParser(description='Run Phase 3 RAG generation evaluation.')
     parser.add_argument('--method', action='append', choices=sorted(RETRIEVAL_METHODS))
+    parser.add_argument('--case-id', default=None, help='Evaluate one exact Phase 3 case_id.')
     parser.add_argument('--generation-mode', choices=[GENERATION_MODE_MOCK, GENERATION_MODE_REAL], default=GENERATION_MODE_MOCK)
     parser.add_argument('--provider', default=DEFAULT_REAL_PROVIDER)
     parser.add_argument('--model', default=None, help='Optional model override for the selected provider.')
@@ -659,6 +675,7 @@ def main() -> int:
         if args.preflight:
             preflight = preflight_real_generation(
                 method_names=args.method,
+                case_id=args.case_id,
                 provider=args.provider,
                 temperature=args.temperature,
                 max_tokens=args.max_tokens,
@@ -682,6 +699,7 @@ def main() -> int:
 
         report = run_generation_evaluation(
             method_names=args.method,
+            case_id=args.case_id,
             generation_mode=args.generation_mode,
             allow_real_dense=args.allow_real_dense,
             provider=args.provider if args.generation_mode == GENERATION_MODE_REAL else None,
