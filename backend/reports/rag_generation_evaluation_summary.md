@@ -132,6 +132,20 @@ Hosted model output may still have minor non-determinism despite temperature 0.
 No final speech-quality conclusion is permitted until real outputs are
 generated and reviewed.
 
+## Provider Completion Metadata
+
+The first real Gemini outputs did not preserve provider completion metadata, so
+incomplete outputs could not be confidently attributed to retrieval quality,
+provider truncation, safety behavior, or another interruption. Future real-mode
+evaluator runs now request normalized provider metadata, including finish
+reason, token usage, safety ratings, candidate count, and whether provider
+metadata was available.
+
+This metadata is recorded only in ignored evaluation JSON reports. It is needed
+to distinguish retrieval effects from provider-side completion behavior. No
+quality conclusion about graph-style speech generation should be drawn from
+incomplete outputs until completion metadata is available for comparable runs.
+
 ## Future Human Scoring Rubric
 
 Later real-generation runs should use 1-5 scoring for:

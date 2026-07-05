@@ -123,6 +123,11 @@ def test_each_method_produces_required_output_shape():
         assert result['dense_mode'] == evaluator.DENSE_MODE_STUB
         assert result['provider'] is None
         assert result['model'] is None
+        assert result['provider_finish_reason'] is None
+        assert result['provider_usage_metadata'] is None
+        assert result['provider_safety_metadata'] is None
+        assert result['provider_candidate_count'] is None
+        assert result['provider_response_metadata_available'] is False
         assert result['generation_error'] is None
         assert result['retrieved_evidence']
         assert result['generated_speech'].startswith(f"[MOCK {case['target_language']} SPEECH]")
@@ -538,13 +543,21 @@ def test_real_generation_wrapper_calls_service_directly_and_restores_state(monke
     original_model = llm_service.GEMINI_MODEL
     captured = {}
 
-    def fake_generate_text(messages, max_tokens, temperature):
+    def fake_generate_text(messages, max_tokens, temperature, return_metadata=False):
         captured['messages'] = messages
         captured['max_tokens'] = max_tokens
         captured['temperature'] = temperature
+        captured['return_metadata'] = return_metadata
         captured['provider_during_call'] = llm_service.LLM_PROVIDER
         captured['model_during_call'] = llm_service.GEMINI_MODEL
-        return 'generated text'
+        return {
+            'text': 'generated text',
+            'finish_reason': 'STOP',
+            'usage_metadata': {'totalTokenCount': 12},
+            'safety_metadata': [{'category': 'HARM_CATEGORY_TEST', 'probability': 'NEGLIGIBLE'}],
+            'candidate_count': 1,
+            'response_metadata_available': True,
+        } if return_metadata else 'generated text'
 
     monkeypatch.setattr(llm_service, 'generate_text', fake_generate_text)
     generator = evaluator.real_generation_function_factory(
@@ -556,15 +569,176 @@ def test_real_generation_wrapper_calls_service_directly_and_restores_state(monke
 
     output = generator('Prompt body', {'target_language': 'en'}, [])
 
-    assert output == 'generated text'
+    assert isinstance(output, dict)
     assert captured['provider_during_call'] == 'gemini'
     assert captured['model_during_call'] == 'gemini-test-model'
     assert captured['max_tokens'] == 2800
     assert captured['temperature'] == 0
+    assert captured['return_metadata'] is True
     assert captured['messages'][0]['role'] == 'system'
     assert captured['messages'][1] == {'role': 'user', 'content': 'Prompt body'}
+    assert output['text'] == 'generated text'
+    assert output['finish_reason'] == 'STOP'
     assert llm_service.LLM_PROVIDER == original_provider
     assert llm_service.GEMINI_MODEL == original_model
+
+
+def test_llm_service_default_generate_text_returns_plain_string(monkeypatch):
+    from services import llm_service
+
+    class FakeResponse:
+        ok = True
+        status_code = 200
+        text = ''
+
+        def json(self):
+            return {
+                'candidates': [
+                    {
+                        'content': {'parts': [{'text': ' plain text output '}]},
+                        'finishReason': 'STOP',
+                    }
+                ],
+                'usageMetadata': {'totalTokenCount': 17},
+            }
+
+    monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
+    monkeypatch.setattr(llm_service, 'LLM_PROVIDER', 'gemini')
+    monkeypatch.setattr(llm_service, 'GEMINI_MODEL', 'gemini-test-model')
+    monkeypatch.setattr('requests.post', lambda *args, **kwargs: FakeResponse())
+
+    output = llm_service.generate_text(
+        [{'role': 'user', 'content': 'hello'}],
+        max_tokens=42,
+        temperature=0,
+    )
+
+    assert output == 'plain text output'
+
+
+def test_llm_service_gemini_return_metadata_normalizes_safe_fields(monkeypatch):
+    from services import llm_service
+
+    captured = {}
+
+    class FakeResponse:
+        ok = True
+        status_code = 200
+        text = ''
+
+        def json(self):
+            return {
+                'candidates': [
+                    {
+                        'content': {'parts': [{'text': 'metadata text'}]},
+                        'finishReason': 'MAX_TOKENS',
+                        'safetyRatings': [
+                            {'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'probability': 'LOW'}
+                        ],
+                    },
+                    {
+                        'content': {'parts': [{'text': 'unused candidate'}]},
+                        'finishReason': 'STOP',
+                    },
+                ],
+                'usageMetadata': {
+                    'promptTokenCount': 10,
+                    'candidatesTokenCount': 5,
+                    'totalTokenCount': 15,
+                },
+            }
+
+    def fake_post(url, json, timeout):
+        captured['json'] = json
+        captured['timeout'] = timeout
+        return FakeResponse()
+
+    monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
+    monkeypatch.setattr(llm_service, 'LLM_PROVIDER', 'gemini')
+    monkeypatch.setattr(llm_service, 'GEMINI_MODEL', 'gemini-test-model')
+    monkeypatch.setattr('requests.post', fake_post)
+
+    output = llm_service.generate_text(
+        [{'role': 'user', 'content': 'hello'}],
+        max_tokens=42,
+        temperature=0,
+        return_metadata=True,
+    )
+
+    assert output == {
+        'text': 'metadata text',
+        'provider': 'gemini',
+        'model': 'gemini-test-model',
+        'finish_reason': 'MAX_TOKENS',
+        'usage_metadata': {
+            'promptTokenCount': 10,
+            'candidatesTokenCount': 5,
+            'totalTokenCount': 15,
+        },
+        'safety_metadata': [
+            {'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'probability': 'LOW'}
+        ],
+        'candidate_count': 2,
+        'response_metadata_available': True,
+    }
+    assert captured['json']['generationConfig'] == {'maxOutputTokens': 42, 'temperature': 0}
+    assert 'configured-for-test-only' not in str(output)
+
+
+def test_evaluator_real_result_stores_provider_metadata():
+    case = evaluator.load_generation_cases()[0]
+
+    def metadata_generation(prompt, case, evidence):
+        return {
+            'text': 'real speech',
+            'finish_reason': 'STOP',
+            'usage_metadata': {'totalTokenCount': 99},
+            'safety_metadata': [{'category': 'HARM_CATEGORY_TEST', 'probability': 'NEGLIGIBLE'}],
+            'candidate_count': 1,
+            'response_metadata_available': True,
+        }
+
+    result = evaluator.evaluate_case_method(
+        case,
+        LIGHTRAG_RETRIEVAL_METHOD,
+        generation_function=metadata_generation,
+        generation_mode=evaluator.GENERATION_MODE_REAL,
+        provider='gemini',
+        model='gemini-test-model',
+        temperature=0,
+        max_tokens=2800,
+    )
+
+    assert result['generated_speech'] == 'real speech'
+    assert result['provider_finish_reason'] == 'STOP'
+    assert result['provider_usage_metadata'] == {'totalTokenCount': 99}
+    assert result['provider_safety_metadata'] == [
+        {'category': 'HARM_CATEGORY_TEST', 'probability': 'NEGLIGIBLE'}
+    ]
+    assert result['provider_candidate_count'] == 1
+    assert result['provider_response_metadata_available'] is True
+
+
+def test_missing_provider_metadata_does_not_crash_evaluation():
+    case = evaluator.load_generation_cases()[0]
+
+    result = evaluator.evaluate_case_method(
+        case,
+        LIGHTRAG_RETRIEVAL_METHOD,
+        generation_function=lambda prompt, case, evidence: {'text': 'real speech'},
+        generation_mode=evaluator.GENERATION_MODE_REAL,
+        provider='gemini',
+        model='gemini-test-model',
+        temperature=0,
+        max_tokens=2800,
+    )
+
+    assert result['generated_speech'] == 'real speech'
+    assert result['provider_finish_reason'] is None
+    assert result['provider_usage_metadata'] is None
+    assert result['provider_safety_metadata'] is None
+    assert result['provider_candidate_count'] is None
+    assert result['provider_response_metadata_available'] is False
 
 
 def test_gemini_model_listing_filters_text_generation_models(monkeypatch):

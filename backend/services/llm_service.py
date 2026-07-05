@@ -40,25 +40,52 @@ def _active_groq_key() -> str | None:
 GEMINI_MODEL = 'gemini-1.5-flash-latest'
 
 
+def _generation_result(
+    text: str,
+    *,
+    provider: str,
+    model: str | None,
+    finish_reason: str | None = None,
+    usage_metadata: dict[str, Any] | None = None,
+    safety_metadata: list[dict[str, Any]] | None = None,
+    candidate_count: int | None = None,
+    response_metadata_available: bool = False,
+) -> dict[str, Any]:
+    return {
+        'text': text,
+        'provider': provider,
+        'model': model,
+        'finish_reason': finish_reason,
+        'usage_metadata': usage_metadata,
+        'safety_metadata': safety_metadata,
+        'candidate_count': candidate_count,
+        'response_metadata_available': response_metadata_available,
+    }
+
+
 def generate_text(
     messages: list[dict[str, str]],
     max_tokens: int = 1800,
     temperature: float = 0.7,
-) -> str:
+    return_metadata: bool = False,
+) -> str | dict[str, Any]:
     """Generate text using the configured provider."""
     provider = LLM_PROVIDER.lower().strip()
 
     if provider == 'gemini':
-        return _generate_with_gemini(messages, max_tokens, temperature)
+        return _generate_with_gemini(messages, max_tokens, temperature, return_metadata)
 
     if provider == 'groq':
-        return _generate_with_groq(messages, max_tokens, temperature)
+        text = _generate_with_groq(messages, max_tokens, temperature)
+        return _generation_result(text, provider='groq', model=PRIMARY_LLM_MODEL) if return_metadata else text
 
     if provider == 'local_aya':
-        return _generate_with_local_aya(messages, max_tokens, temperature)
+        text = _generate_with_local_aya(messages, max_tokens, temperature)
+        return _generation_result(text, provider='local_aya', model=LOCAL_MODEL_ID) if return_metadata else text
 
     if provider == 'remote_aya':
-        return _generate_with_remote_aya(messages, max_tokens, temperature)
+        text = _generate_with_remote_aya(messages, max_tokens, temperature)
+        return _generation_result(text, provider='remote_aya', model=None) if return_metadata else text
 
     raise RuntimeError(
         f"Unsupported LLM_PROVIDER '{LLM_PROVIDER}'. Use 'gemini', 'groq', 'local_aya', or 'remote_aya'."
@@ -71,7 +98,8 @@ def _generate_with_gemini(
     messages: list[dict[str, str]],
     max_tokens: int,
     temperature: float,
-) -> str:
+    return_metadata: bool = False,
+) -> str | dict[str, Any]:
     """Call Gemini via the REST API using requests — no google-genai SDK needed."""
     import os
     key = os.getenv('GOOGLE_AI_KEY', '').strip()
@@ -117,9 +145,22 @@ def _generate_with_gemini(
 
     data = resp.json()
     try:
-        return data['candidates'][0]['content']['parts'][0]['text'].strip()
+        candidate = data['candidates'][0]
+        text = candidate['content']['parts'][0]['text'].strip()
     except (KeyError, IndexError) as exc:
         raise RuntimeError(f'Unexpected Gemini response shape: {data}') from exc
+    if not return_metadata:
+        return text
+    return _generation_result(
+        text,
+        provider='gemini',
+        model=GEMINI_MODEL,
+        finish_reason=candidate.get('finishReason'),
+        usage_metadata=data.get('usageMetadata'),
+        safety_metadata=candidate.get('safetyRatings'),
+        candidate_count=len(data.get('candidates', [])),
+        response_metadata_available=True,
+    )
 
 
 # ── Groq ─────────────────────────────────────────────────────────────────────

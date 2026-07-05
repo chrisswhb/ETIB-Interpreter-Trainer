@@ -15,7 +15,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 from dotenv import load_dotenv
 
@@ -524,8 +524,8 @@ def real_generation_function_factory(
     temperature: float,
     max_tokens: int,
     model_override: str | None = None,
-) -> Callable[[str, dict, list[dict]], str]:
-    def generate(prompt: str, case: dict, evidence_chunks: list[dict]) -> str:
+) -> Callable[[str, dict, list[dict]], str | dict[str, Any]]:
+    def generate(prompt: str, case: dict, evidence_chunks: list[dict]) -> str | dict[str, Any]:
         from services import llm_service
 
         previous_provider = getattr(llm_service, 'LLM_PROVIDER', None)
@@ -544,6 +544,7 @@ def real_generation_function_factory(
                 ],
                 max_tokens=max_tokens,
                 temperature=temperature,
+                return_metadata=True,
             )
         finally:
             if previous_provider is not None:
@@ -554,6 +555,28 @@ def real_generation_function_factory(
     return generate
 
 
+def empty_provider_metadata() -> dict:
+    return {
+        'provider_finish_reason': None,
+        'provider_usage_metadata': None,
+        'provider_safety_metadata': None,
+        'provider_candidate_count': None,
+        'provider_response_metadata_available': False,
+    }
+
+
+def normalize_generation_output(output: str | dict[str, Any]) -> tuple[str, dict]:
+    if not isinstance(output, dict):
+        return str(output), empty_provider_metadata()
+    return str(output.get('text') or ''), {
+        'provider_finish_reason': output.get('finish_reason'),
+        'provider_usage_metadata': output.get('usage_metadata'),
+        'provider_safety_metadata': output.get('safety_metadata'),
+        'provider_candidate_count': output.get('candidate_count'),
+        'provider_response_metadata_available': bool(output.get('response_metadata_available')),
+    }
+
+
 def sanitize_generation_error(exc: Exception) -> str:
     text = str(exc).replace('\r', ' ').replace('\n', ' ').strip()
     return text[:500] or exc.__class__.__name__
@@ -562,7 +585,7 @@ def sanitize_generation_error(exc: Exception) -> str:
 def evaluate_case_method(
     case: dict,
     method_name: str,
-    generation_function: Callable[[str, dict, list[dict]], str] = mock_generation_function,
+    generation_function: Callable[[str, dict, list[dict]], str | dict[str, Any]] = mock_generation_function,
     generation_mode: str = GENERATION_MODE_MOCK,
     dense_mode: str = DENSE_MODE_STUB,
     provider: str | None = None,
@@ -580,8 +603,10 @@ def evaluate_case_method(
     started = time.perf_counter()
     generation_error = None
     generated_speech = ''
+    provider_metadata = empty_provider_metadata()
     try:
-        generated_speech = generation_function(prompt, case, evidence)
+        generated_output = generation_function(prompt, case, evidence)
+        generated_speech, provider_metadata = normalize_generation_output(generated_output)
     except Exception as exc:
         if generation_mode != GENERATION_MODE_REAL:
             raise
@@ -605,6 +630,7 @@ def evaluate_case_method(
         'canonical_prompt': prompt,
         'generated_speech': generated_speech,
         'generation_error': generation_error,
+        **provider_metadata,
         'retrieval_runtime': retrieval_runtime,
         'context_character_count': sum(len(chunk.get('text', '')) for chunk in evidence),
         'max_context_character_budget': MAX_EVIDENCE_CHARACTERS,
