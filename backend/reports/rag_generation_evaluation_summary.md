@@ -104,10 +104,10 @@ implemented but has not been executed against a live provider.
 Gemini is the proposed first provider once `GOOGLE_AI_KEY` is configured
 locally. The initial real pilot is designed to use:
 
-- 10 cases;
+- 13 cases, including 10 original Phase 3 cases and 3 hard discriminative variants;
 - 3 retrieval methods;
 - 1 generation per method/case;
-- 30 total generations;
+- 39 total generations;
 - temperature 0;
 - max_tokens 2800;
 - fixed canonical prompt template;
@@ -127,6 +127,15 @@ Dense retrieval is explicit in the evaluator: `--dense-mode stub` keeps the
 fast deterministic stand-in, while `--dense-mode real` uses the local dense
 multilingual embedding retriever and fails rather than silently falling back if
 the optional model/runtime is unavailable.
+
+The hard discriminative variants are benchmark-only additions that preserve the
+original Phase 3 cases unchanged. They add plausible policy, funding,
+coordination, multilingual, or cross-language distractors so each retrieval
+method must make tradeoffs under the existing 3-chunk context budget:
+
+- `multi_doc_chain_climate_migration_health_hard`;
+- `cross_language_request_fr_sources_en_hard`;
+- `arabic_output_from_multidoc_sources_hard`.
 
 Hosted model output may still have minor non-determinism despite temperature 0.
 No final speech-quality conclusion is permitted until real outputs are

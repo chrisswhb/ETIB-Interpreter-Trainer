@@ -29,23 +29,94 @@ REQUIRED_CASE_FIELDS = {
     'evaluator_notes',
 }
 
+ORIGINAL_PHASE3_CASE_SOURCES = {
+    'single_doc_exact_climate_en': {
+        'source_documents': ['climate_finance_en.txt'],
+        'expected_source_documents': ['climate_finance_en.txt'],
+    },
+    'single_doc_paraphrase_health_fr': {
+        'source_documents': ['health_systems_fr.txt'],
+        'expected_source_documents': ['health_systems_fr.txt'],
+    },
+    'single_doc_arabic_diplomacy_ar': {
+        'source_documents': ['arab_diplomacy_ar.txt'],
+        'expected_source_documents': ['arab_diplomacy_ar.txt'],
+    },
+    'numbers_entities_precision_en': {
+        'source_documents': ['numbers_entities_en.txt'],
+        'expected_source_documents': ['numbers_entities_en.txt'],
+    },
+    'multi_doc_direct_relation_food_health': {
+        'source_documents': ['food_security_migration_en.txt', 'health_displacement_en.txt'],
+        'expected_source_documents': ['food_security_migration_en.txt', 'health_displacement_en.txt'],
+    },
+    'multi_doc_chain_climate_migration_health': {
+        'source_documents': [
+            'climate_agriculture_en.txt',
+            'food_security_migration_en.txt',
+            'health_displacement_en.txt',
+        ],
+        'expected_source_documents': [
+            'climate_agriculture_en.txt',
+            'food_security_migration_en.txt',
+            'health_displacement_en.txt',
+        ],
+    },
+    'broad_synthesis_humanitarian_speech': {
+        'source_documents': [
+            'climate_agriculture_en.txt',
+            'food_security_migration_en.txt',
+            'health_displacement_en.txt',
+            'regional_funding_en.txt',
+            'cooperation_policy_en.txt',
+        ],
+        'expected_source_documents': [
+            'climate_agriculture_en.txt',
+            'food_security_migration_en.txt',
+            'health_displacement_en.txt',
+        ],
+    },
+    'distractor_documents_regional_funding': {
+        'source_documents': [
+            'regional_funding_en.txt',
+            'distractor_sports_en.txt',
+            'cooperation_policy_en.txt',
+        ],
+        'expected_source_documents': ['regional_funding_en.txt', 'cooperation_policy_en.txt'],
+    },
+    'cross_language_request_fr_sources_en': {
+        'source_documents': ['climate_finance_en.txt', 'regional_funding_en.txt'],
+        'expected_source_documents': ['climate_finance_en.txt', 'regional_funding_en.txt'],
+    },
+    'arabic_output_from_multidoc_sources': {
+        'source_documents': [
+            'food_security_migration_en.txt',
+            'health_systems_fr.txt',
+            'regional_funding_en.txt',
+        ],
+        'expected_source_documents': [
+            'food_security_migration_en.txt',
+            'health_systems_fr.txt',
+            'regional_funding_en.txt',
+        ],
+    },
+}
+
+HARD_PHASE3_CASE_IDS = {
+    'multi_doc_chain_climate_migration_health_hard',
+    'cross_language_request_fr_sources_en_hard',
+    'arabic_output_from_multidoc_sources_hard',
+}
+
+PHASE3_CASE_COUNT = len(ORIGINAL_PHASE3_CASE_SOURCES) + len(HARD_PHASE3_CASE_IDS)
+
 
 def test_phase3_fixture_schema_and_case_count():
     cases = evaluator.load_generation_cases()
+    case_ids = {case['case_id'] for case in cases}
 
-    assert len(cases) == 10
-    assert {case['case_id'] for case in cases} == {
-        'single_doc_exact_climate_en',
-        'single_doc_paraphrase_health_fr',
-        'single_doc_arabic_diplomacy_ar',
-        'numbers_entities_precision_en',
-        'multi_doc_direct_relation_food_health',
-        'multi_doc_chain_climate_migration_health',
-        'broad_synthesis_humanitarian_speech',
-        'distractor_documents_regional_funding',
-        'cross_language_request_fr_sources_en',
-        'arabic_output_from_multidoc_sources',
-    }
+    assert len(cases) == PHASE3_CASE_COUNT
+    assert case_ids == set(ORIGINAL_PHASE3_CASE_SOURCES) | HARD_PHASE3_CASE_IDS
     for case in cases:
         assert REQUIRED_CASE_FIELDS.issubset(case)
         evaluator.validate_case_schema(case)
@@ -54,12 +125,34 @@ def test_phase3_fixture_schema_and_case_count():
         assert case['target_language'] in {'en', 'fr', 'ar'}
 
 
+def test_original_phase3_cases_remain_unchanged():
+    cases_by_id = {case['case_id']: case for case in evaluator.load_generation_cases()}
+
+    for case_id, expected in ORIGINAL_PHASE3_CASE_SOURCES.items():
+        case = cases_by_id[case_id]
+        assert case['source_documents'] == expected['source_documents']
+        assert case['expected_source_documents'] == expected['expected_source_documents']
+
+
+def test_hard_phase3_cases_force_three_chunk_tradeoffs():
+    cases_by_id = {case['case_id']: case for case in evaluator.load_generation_cases()}
+
+    for case_id in HARD_PHASE3_CASE_IDS:
+        case = cases_by_id[case_id]
+        assert len(case['source_documents']) > evaluator.MAX_EVIDENCE_CHUNKS
+        assert set(case['expected_source_documents']).issubset(case['source_documents'])
+        assert set(case['distractor_documents']).issubset(case['source_documents'])
+        assert set(case['distractor_documents']).isdisjoint(case['expected_source_documents'])
+        assert case['distractor_rationale']
+        assert case['hard_case_design_notes']
+
+
 def test_select_generation_cases_default_returns_all_cases():
     cases = evaluator.load_generation_cases()
 
     selected = evaluator.select_generation_cases(cases)
 
-    assert len(selected) == 10
+    assert len(selected) == PHASE3_CASE_COUNT
     assert selected == cases
 
 
@@ -70,6 +163,22 @@ def test_select_generation_cases_valid_case_id_returns_one_case():
 
     assert len(selected) == 1
     assert selected[0]['case_id'] == 'single_doc_exact_climate_en'
+
+
+def test_each_hard_phase3_case_can_be_selected_for_mock_evaluation():
+    for case_id in HARD_PHASE3_CASE_IDS:
+        report = evaluator.run_generation_evaluation(
+            method_names=[DENSE_RETRIEVAL_METHOD],
+            case_id=case_id,
+            dense_mode=evaluator.DENSE_MODE_STUB,
+        )
+
+        assert report['generation_mode'] == evaluator.GENERATION_MODE_MOCK
+        assert report['real_llm_called'] is False
+        assert report['case_count'] == 1
+        assert report['result_count'] == 1
+        assert report['results'][0]['case_id'] == case_id
+        assert report['results'][0]['retrieval_method'] == DENSE_RETRIEVAL_METHOD
 
 
 def test_select_generation_cases_invalid_case_id_fails_safely():
@@ -226,8 +335,8 @@ def test_run_generation_evaluation_all_cases_mock_mode():
     assert report['benchmark_name'] == 'phase3_end_to_end_speech_generation_rag'
     assert report['generation_mode'] == evaluator.GENERATION_MODE_MOCK
     assert report['dense_mode'] == evaluator.DENSE_MODE_STUB
-    assert report['case_count'] == 10
-    assert report['result_count'] == 30
+    assert report['case_count'] == PHASE3_CASE_COUNT
+    assert report['result_count'] == PHASE3_CASE_COUNT * 3
     assert report['real_llm_called'] is False
     assert set(report['summary']) == {
         DENSE_RETRIEVAL_METHOD,
@@ -320,7 +429,7 @@ def test_preflight_attempts_dotenv_before_provider_validation(monkeypatch):
     )
 
     assert calls == ['loaded']
-    assert preflight['expected_generation_count'] == 10
+    assert preflight['expected_generation_count'] == PHASE3_CASE_COUNT
     assert preflight['llm_called'] is False
 
 
@@ -378,7 +487,7 @@ def test_mock_mode_does_not_require_google_key(monkeypatch):
     report = evaluator.run_generation_evaluation(method_names=[GRAPHRAG_RETRIEVAL_METHOD])
 
     assert report['generation_mode'] == evaluator.GENERATION_MODE_MOCK
-    assert report['result_count'] == 10
+    assert report['result_count'] == PHASE3_CASE_COUNT
     assert report['real_llm_called'] is False
 
 
@@ -405,7 +514,7 @@ def test_preflight_performs_no_provider_call(monkeypatch, tmp_path):
 
     assert preflight['provider'] == 'gemini'
     assert preflight['model'] == 'gemini-1.5-flash-latest'
-    assert preflight['expected_generation_count'] == 30
+    assert preflight['expected_generation_count'] == PHASE3_CASE_COUNT * 3
     assert preflight['llm_called'] is False
 
 

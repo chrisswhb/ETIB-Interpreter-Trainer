@@ -118,5 +118,50 @@
     "expected_relation_chain": ["food insecurity", "prevention", "vaccination", "regional funding"],
     "retrieval_type_category": "arabic_output_multidocument",
     "evaluator_notes": "Arabic output request grounded in English and French sources."
+  },
+  {
+    "case_id": "multi_doc_chain_climate_migration_health_hard",
+    "source_documents": ["climate_agriculture_en.txt", "food_security_migration_en.txt", "health_displacement_en.txt", "regional_funding_en.txt", "cooperation_policy_en.txt", "climate_finance_en.txt"],
+    "user_request": "Prepare a speech tracing the chain from climate disruption to agriculture, food insecurity, displacement, and pressure on clinics while avoiding a funding-only or policy-only framing.",
+    "target_language": "en",
+    "requested_duration_seconds": 180,
+    "expected_source_documents": ["climate_agriculture_en.txt", "food_security_migration_en.txt", "health_displacement_en.txt"],
+    "key_factual_claims": ["climate disruption", "agricultural production", "food insecurity", "temporary displacement", "health services"],
+    "expected_relation_chain": ["climate disruption", "agricultural production", "food insecurity", "displacement", "health services"],
+    "distractor_documents": ["regional_funding_en.txt", "cooperation_policy_en.txt", "climate_finance_en.txt"],
+    "distractor_rationale": "The distractors discuss plausible policy, funding, resilience, logistics, and climate support themes, but they do not carry the full causal chain from agriculture to health-service pressure.",
+    "hard_case_design_notes": "Six candidate documents compete for a 3-chunk context budget, so a strong retriever must prioritize the causal-chain evidence rather than broad policy or funding context.",
+    "retrieval_type_category": "multi_document_relation_chain_hard",
+    "evaluator_notes": "Hard variant of the climate-migration-health chain with plausible policy and funding distractors."
+  },
+  {
+    "case_id": "cross_language_request_fr_sources_en_hard",
+    "source_documents": ["climate_finance_en.txt", "regional_funding_en.txt", "cooperation_policy_en.txt", "climate_agriculture_en.txt", "numbers_entities_en.txt"],
+    "user_request": "Redigez un discours en francais sur le financement climatique, la formation solaire, le transfert de technologie et le soutien regional, sans confondre ces elements avec une coordination generale.",
+    "target_language": "fr",
+    "requested_duration_seconds": 150,
+    "expected_source_documents": ["climate_finance_en.txt", "regional_funding_en.txt"],
+    "key_factual_claims": ["climate finance", "solar and wind training", "technology transfer", "Regional Resilience Fund", "42 million dollars"],
+    "expected_relation_chain": ["climate finance", "technology transfer", "regional support"],
+    "distractor_documents": ["cooperation_policy_en.txt", "climate_agriculture_en.txt", "numbers_entities_en.txt"],
+    "distractor_rationale": "The distractors overlap with climate, regional coordination, institutions, dates, and resilience vocabulary, but they are not the focused climate-finance and regional-funding evidence requested in French.",
+    "hard_case_design_notes": "A French request must select two English evidence sources from five plausible candidates under a 3-chunk context budget, making cross-language semantic alignment more important.",
+    "retrieval_type_category": "cross_language_request_hard",
+    "evaluator_notes": "Hard French-to-English retrieval variant with semantically related English distractors."
+  },
+  {
+    "case_id": "arabic_output_from_multidoc_sources_hard",
+    "source_documents": ["food_security_migration_en.txt", "health_systems_fr.txt", "regional_funding_en.txt", "arab_diplomacy_ar.txt", "cooperation_policy_en.txt", "climate_finance_en.txt"],
+    "user_request": "Ø§ÙƒØªØ¨ Ø®Ø·Ø§Ø¨Ø§ Ø¹Ø±Ø¨ÙŠØ§ ÙŠØ±Ø¨Ø· Ø¨ÙŠÙ† Ø§Ù„Ø£Ù…Ù† Ø§Ù„ØºØ°Ø§Ø¦ÙŠ ÙˆØ§Ù„Ù†Ø²ÙˆØ­ ÙˆØ§Ù„ÙˆÙ‚Ø§ÙŠØ© Ø§Ù„ØµØ­ÙŠØ© ÙˆØ§Ù„ØªÙ…ÙˆÙŠÙ„ Ø§Ù„Ø¥Ù‚Ù„ÙŠÙ…ÙŠ.",
+    "target_language": "ar",
+    "requested_duration_seconds": 180,
+    "expected_source_documents": ["food_security_migration_en.txt", "health_systems_fr.txt", "regional_funding_en.txt"],
+    "key_factual_claims": ["food insecurity", "migration pressure", "prevention", "vaccination", "Regional Resilience Fund", "42 million dollars"],
+    "expected_relation_chain": ["food insecurity", "migration pressure", "prevention", "vaccination", "regional funding"],
+    "distractor_documents": ["arab_diplomacy_ar.txt", "cooperation_policy_en.txt", "climate_finance_en.txt"],
+    "distractor_rationale": "The distractors are multilingual or topically adjacent through Arab cooperation, regional coordination, and climate finance, but they do not jointly cover the requested food-security, health-prevention, and funding evidence.",
+    "hard_case_design_notes": "An Arabic output request must ground a mixed English/French evidence chain while avoiding adjacent Arabic diplomacy, cooperation-policy, and climate-finance material.",
+    "retrieval_type_category": "arabic_output_multidocument_hard",
+    "evaluator_notes": "Hard Arabic output case grounded in mixed English and French sources with plausible multilingual distractors."
   }
 ]
