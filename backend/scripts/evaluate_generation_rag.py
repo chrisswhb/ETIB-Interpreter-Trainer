@@ -41,6 +41,7 @@ DENSE_MODE_REAL = 'real'
 DEFAULT_REAL_PROVIDER = 'gemini'
 DEFAULT_REAL_TEMPERATURE = 0.0
 DEFAULT_REAL_MAX_TOKENS = 2800
+MAX_THINKING_BUDGET = 2048
 PROMPT_TEMPLATE_VERSION = 'phase3_canonical_prompt_v1'
 SUPPORTED_REAL_PROVIDERS = {
     'gemini': {
@@ -393,6 +394,7 @@ def validate_generation_controls(
     provider: str | None,
     temperature: float,
     max_tokens: int,
+    thinking_budget: int | None = None,
 ) -> None:
     if generation_mode not in {GENERATION_MODE_MOCK, GENERATION_MODE_REAL}:
         raise GenerationConfigError(
@@ -402,6 +404,7 @@ def validate_generation_controls(
         raise GenerationConfigError('max_tokens must be a positive integer.')
     if not isinstance(temperature, (int, float)) or temperature < 0:
         raise GenerationConfigError('temperature must be a non-negative number.')
+    validate_thinking_budget(thinking_budget)
     if generation_mode == GENERATION_MODE_REAL:
         if provider not in SUPPORTED_REAL_PROVIDERS:
             supported = ', '.join(sorted(SUPPORTED_REAL_PROVIDERS))
@@ -413,6 +416,17 @@ def validate_generation_controls(
             raise GenerationConfigError(
                 f'{required_env} is required for provider {provider} but is not configured.'
             )
+
+
+def validate_thinking_budget(thinking_budget: int | None) -> None:
+    if thinking_budget is None:
+        return
+    if not isinstance(thinking_budget, int) or isinstance(thinking_budget, bool):
+        raise GenerationConfigError('thinking_budget must be a positive integer.')
+    if thinking_budget <= 0 or thinking_budget > MAX_THINKING_BUDGET:
+        raise GenerationConfigError(
+            f'thinking_budget must be between 1 and {MAX_THINKING_BUDGET}.'
+        )
 
 
 def validate_dense_mode(dense_mode: str) -> None:
@@ -483,6 +497,7 @@ def preflight_real_generation(
     max_tokens: int,
     output_path: Path,
     model_override: str | None = None,
+    thinking_budget: int | None = None,
 ) -> dict:
     load_evaluator_dotenv()
     cases = select_generation_cases(load_generation_cases(), case_id)
@@ -492,7 +507,13 @@ def preflight_real_generation(
     unknown_methods = [method for method in methods if method not in RETRIEVAL_METHODS]
     if unknown_methods:
         raise GenerationConfigError(f'Unknown retrieval methods: {unknown_methods}')
-    validate_generation_controls(GENERATION_MODE_REAL, provider, temperature, max_tokens)
+    validate_generation_controls(
+        GENERATION_MODE_REAL,
+        provider,
+        temperature,
+        max_tokens,
+        thinking_budget=thinking_budget,
+    )
     validate_dense_mode(dense_mode)
     validate_output_path(output_path)
 
@@ -509,6 +530,7 @@ def preflight_real_generation(
         'model': resolved_model,
         'temperature': temperature,
         'max_tokens': max_tokens,
+        'thinking_budget': thinking_budget,
         'dense_mode': dense_mode,
         'case_count': len(cases),
         'method_count': len(methods),
@@ -524,6 +546,7 @@ def real_generation_function_factory(
     temperature: float,
     max_tokens: int,
     model_override: str | None = None,
+    thinking_budget: int | None = None,
 ) -> Callable[[str, dict, list[dict]], str | dict[str, Any]]:
     def generate(prompt: str, case: dict, evidence_chunks: list[dict]) -> str | dict[str, Any]:
         from services import llm_service
@@ -545,6 +568,7 @@ def real_generation_function_factory(
                 max_tokens=max_tokens,
                 temperature=temperature,
                 return_metadata=True,
+                thinking_budget=thinking_budget,
             )
         finally:
             if previous_provider is not None:
@@ -577,6 +601,14 @@ def normalize_generation_output(output: str | dict[str, Any]) -> tuple[str, dict
     }
 
 
+def provider_thoughts_token_count(provider_metadata: dict) -> int | None:
+    usage = provider_metadata.get('provider_usage_metadata')
+    if not isinstance(usage, dict):
+        return None
+    value = usage.get('thoughtsTokenCount')
+    return value if isinstance(value, int) else None
+
+
 def sanitize_generation_error(exc: Exception) -> str:
     text = str(exc).replace('\r', ' ').replace('\n', ' ').strip()
     return text[:500] or exc.__class__.__name__
@@ -592,6 +624,7 @@ def evaluate_case_method(
     model: str | None = None,
     temperature: float = DEFAULT_REAL_TEMPERATURE,
     max_tokens: int = DEFAULT_REAL_MAX_TOKENS,
+    thinking_budget: int | None = None,
 ) -> dict:
     validate_case_schema(case)
     evidence, retrieval_latency_ms, retrieval_runtime = retrieve_evidence(
@@ -622,6 +655,7 @@ def evaluate_case_method(
         'model': model,
         'temperature': temperature,
         'max_tokens': max_tokens,
+        'thinking_budget_requested': thinking_budget,
         'prompt_template_version': PROMPT_TEMPLATE_VERSION,
         'prompt_template_hash': prompt_template_hash(prompt),
         'target_language': case['target_language'],
@@ -631,6 +665,7 @@ def evaluate_case_method(
         'generated_speech': generated_speech,
         'generation_error': generation_error,
         **provider_metadata,
+        'provider_thoughts_token_count': provider_thoughts_token_count(provider_metadata),
         'retrieval_runtime': retrieval_runtime,
         'context_character_count': sum(len(chunk.get('text', '')) for chunk in evidence),
         'max_context_character_budget': MAX_EVIDENCE_CHARACTERS,
@@ -708,8 +743,15 @@ def run_generation_evaluation(
     model: str | None = None,
     temperature: float = DEFAULT_REAL_TEMPERATURE,
     max_tokens: int = DEFAULT_REAL_MAX_TOKENS,
+    thinking_budget: int | None = None,
 ) -> dict:
-    validate_generation_controls(generation_mode, provider, temperature, max_tokens)
+    validate_generation_controls(
+        generation_mode,
+        provider,
+        temperature,
+        max_tokens,
+        thinking_budget=thinking_budget,
+    )
     validate_dense_mode(dense_mode)
     cases = select_generation_cases(load_generation_cases(), case_id)
     methods = method_names or list(RETRIEVAL_METHODS)
@@ -722,6 +764,7 @@ def run_generation_evaluation(
             temperature=temperature,
             max_tokens=max_tokens,
             model_override=model,
+            thinking_budget=thinking_budget,
         )
     results = [
         evaluate_case_method(
@@ -734,6 +777,7 @@ def run_generation_evaluation(
             model=resolved_model if generation_mode == GENERATION_MODE_REAL else None,
             temperature=temperature,
             max_tokens=max_tokens,
+            thinking_budget=thinking_budget,
         )
         for case in cases
         for method_name in methods
@@ -749,6 +793,7 @@ def run_generation_evaluation(
         'model': resolved_model if generation_mode == GENERATION_MODE_REAL else None,
         'temperature': temperature,
         'max_tokens': max_tokens,
+        'thinking_budget_requested': thinking_budget,
         'case_count': len(cases),
         'result_count': len(results),
         'fixed_context_budget': {
@@ -862,6 +907,7 @@ def main() -> int:
     parser.add_argument('--model', default=None, help='Optional model override for the selected provider.')
     parser.add_argument('--temperature', type=float, default=DEFAULT_REAL_TEMPERATURE)
     parser.add_argument('--max-tokens', type=int, default=DEFAULT_REAL_MAX_TOKENS)
+    parser.add_argument('--thinking-budget', type=int, default=None)
     parser.add_argument('--output', type=Path, default=DEFAULT_OUTPUT_PATH)
     parser.add_argument('--preflight', action='store_true', help='Validate real-generation setup without calling a provider.')
     parser.add_argument('--list-available-models', action='store_true', help='List text-generation models for the selected provider without generating.')
@@ -893,12 +939,14 @@ def main() -> int:
                 max_tokens=args.max_tokens,
                 output_path=args.output,
                 model_override=args.model,
+                thinking_budget=args.thinking_budget,
             )
             print('Phase 3 real-generation preflight')
             print(f"Provider: {preflight['provider']}")
             print(f"Model: {preflight['model']}")
             print(f"Temperature: {preflight['temperature']}")
             print(f"Max tokens: {preflight['max_tokens']}")
+            print(f"Thinking budget: {preflight['thinking_budget']}")
             print(f"Dense mode: {preflight['dense_mode']}")
             print(
                 f"Expected generations: {preflight['case_count']} cases x "
@@ -926,6 +974,7 @@ def main() -> int:
                 model=args.model,
                 temperature=args.temperature,
                 max_tokens=args.max_tokens,
+                thinking_budget=args.thinking_budget,
             )
     except GenerationConfigError as exc:
         print(f'Configuration error: {exc}', file=sys.stderr)

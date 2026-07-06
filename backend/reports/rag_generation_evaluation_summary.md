@@ -146,6 +146,16 @@ to distinguish retrieval effects from provider-side completion behavior. No
 quality conclusion about graph-style speech generation should be drawn from
 incomplete outputs until completion metadata is available for comparable runs.
 
+Follow-up metadata reruns showed that the graph-style broad-synthesis outputs
+ended with Gemini `MAX_TOKENS`, with most of the configured output budget spent
+on provider thought tokens rather than visible speech text. Future diagnostic
+runs should use an explicit low Gemini thinking budget to reserve output
+capacity and isolate retrieval quality from thinking-budget exhaustion.
+
+The earlier truncated LightRAG-style and GraphRAG-style speeches should not be
+used as evidence of graph-style generation quality until they are rerun with
+completion metadata and a controlled thinking budget.
+
 ## Future Human Scoring Rubric
 
 Later real-generation runs should use 1-5 scoring for:

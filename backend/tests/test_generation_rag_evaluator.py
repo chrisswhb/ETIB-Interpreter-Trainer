@@ -109,11 +109,18 @@ def test_each_method_produces_required_output_shape():
             'model',
             'temperature',
             'max_tokens',
+            'thinking_budget_requested',
             'prompt_template_hash',
             'context_character_count',
             'retrieved_source_documents',
             'retrieval_latency_ms',
             'generation_latency_ms',
+            'provider_finish_reason',
+            'provider_usage_metadata',
+            'provider_safety_metadata',
+            'provider_candidate_count',
+            'provider_response_metadata_available',
+            'provider_thoughts_token_count',
             'grounding_proxy',
             'traceability_proxy',
         }.issubset(result)
@@ -338,7 +345,31 @@ def test_preflight_with_case_id_and_method_reports_one_generation(monkeypatch):
     assert preflight['case_count'] == 1
     assert preflight['method_count'] == 1
     assert preflight['expected_generation_count'] == 1
+    assert preflight['thinking_budget'] is None
     assert preflight['llm_called'] is False
+
+
+def test_preflight_reports_requested_thinking_budget(monkeypatch):
+    def fake_load_evaluator_dotenv():
+        monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
+        return True
+
+    monkeypatch.delenv('GOOGLE_AI_KEY', raising=False)
+    monkeypatch.setattr(evaluator, 'load_evaluator_dotenv', fake_load_evaluator_dotenv)
+
+    preflight = evaluator.preflight_real_generation(
+        method_names=[DENSE_RETRIEVAL_METHOD],
+        case_id='single_doc_exact_climate_en',
+        dense_mode=evaluator.DENSE_MODE_STUB,
+        provider='gemini',
+        temperature=0,
+        max_tokens=2800,
+        output_path=evaluator.BACKEND_ROOT / 'reports' / 'rag_results' / 'test_preflight.json',
+        thinking_budget=256,
+    )
+
+    assert preflight['thinking_budget'] == 256
+    assert preflight['expected_generation_count'] == 1
 
 
 def test_mock_mode_does_not_require_google_key(monkeypatch):
@@ -455,6 +486,21 @@ def test_real_mode_rejects_unsupported_provider(monkeypatch):
     assert 'Unsupported real-generation provider' in str(exc_info.value)
 
 
+def test_invalid_evaluator_thinking_budget_fails_before_generation(monkeypatch):
+    monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
+
+    with pytest.raises(evaluator.GenerationConfigError) as exc_info:
+        evaluator.validate_generation_controls(
+            evaluator.GENERATION_MODE_REAL,
+            'gemini',
+            temperature=0,
+            max_tokens=2800,
+            thinking_budget=-1,
+        )
+
+    assert 'thinking_budget' in str(exc_info.value)
+
+
 def test_real_mode_preserves_same_generation_controls_across_methods():
     case = evaluator.load_generation_cases()[2]
 
@@ -483,6 +529,7 @@ def test_real_mode_preserves_same_generation_controls_across_methods():
     assert {result['model'] for result in results} == {'gemini-1.5-flash-latest'}
     assert {result['temperature'] for result in results} == {0}
     assert {result['max_tokens'] for result in results} == {2800}
+    assert {result['thinking_budget_requested'] for result in results} == {None}
     assert {result['max_evidence_chunks'] for result in results} == {evaluator.MAX_EVIDENCE_CHUNKS}
     assert {result['max_context_character_budget'] for result in results} == {
         evaluator.MAX_EVIDENCE_CHARACTERS
@@ -543,11 +590,18 @@ def test_real_generation_wrapper_calls_service_directly_and_restores_state(monke
     original_model = llm_service.GEMINI_MODEL
     captured = {}
 
-    def fake_generate_text(messages, max_tokens, temperature, return_metadata=False):
+    def fake_generate_text(
+        messages,
+        max_tokens,
+        temperature,
+        return_metadata=False,
+        thinking_budget=None,
+    ):
         captured['messages'] = messages
         captured['max_tokens'] = max_tokens
         captured['temperature'] = temperature
         captured['return_metadata'] = return_metadata
+        captured['thinking_budget'] = thinking_budget
         captured['provider_during_call'] = llm_service.LLM_PROVIDER
         captured['model_during_call'] = llm_service.GEMINI_MODEL
         return {
@@ -575,6 +629,7 @@ def test_real_generation_wrapper_calls_service_directly_and_restores_state(monke
     assert captured['max_tokens'] == 2800
     assert captured['temperature'] == 0
     assert captured['return_metadata'] is True
+    assert captured['thinking_budget'] is None
     assert captured['messages'][0]['role'] == 'system'
     assert captured['messages'][1] == {'role': 'user', 'content': 'Prompt body'}
     assert output['text'] == 'generated text'
@@ -585,6 +640,7 @@ def test_real_generation_wrapper_calls_service_directly_and_restores_state(monke
 
 def test_llm_service_default_generate_text_returns_plain_string(monkeypatch):
     from services import llm_service
+    captured = {}
 
     class FakeResponse:
         ok = True
@@ -605,7 +661,11 @@ def test_llm_service_default_generate_text_returns_plain_string(monkeypatch):
     monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
     monkeypatch.setattr(llm_service, 'LLM_PROVIDER', 'gemini')
     monkeypatch.setattr(llm_service, 'GEMINI_MODEL', 'gemini-test-model')
-    monkeypatch.setattr('requests.post', lambda *args, **kwargs: FakeResponse())
+    def fake_post(url, json, timeout):
+        captured['generation_config'] = json['generationConfig']
+        return FakeResponse()
+
+    monkeypatch.setattr('requests.post', fake_post)
 
     output = llm_service.generate_text(
         [{'role': 'user', 'content': 'hello'}],
@@ -614,6 +674,7 @@ def test_llm_service_default_generate_text_returns_plain_string(monkeypatch):
     )
 
     assert output == 'plain text output'
+    assert captured['generation_config'] == {'maxOutputTokens': 42, 'temperature': 0}
 
 
 def test_llm_service_gemini_return_metadata_normalizes_safe_fields(monkeypatch):
@@ -662,6 +723,7 @@ def test_llm_service_gemini_return_metadata_normalizes_safe_fields(monkeypatch):
         [{'role': 'user', 'content': 'hello'}],
         max_tokens=42,
         temperature=0,
+        thinking_budget=256,
         return_metadata=True,
     )
 
@@ -681,8 +743,60 @@ def test_llm_service_gemini_return_metadata_normalizes_safe_fields(monkeypatch):
         'candidate_count': 2,
         'response_metadata_available': True,
     }
-    assert captured['json']['generationConfig'] == {'maxOutputTokens': 42, 'temperature': 0}
+    assert captured['json']['generationConfig'] == {
+        'maxOutputTokens': 42,
+        'temperature': 0,
+        'thinkingConfig': {'thinkingBudget': 256},
+    }
     assert 'configured-for-test-only' not in str(output)
+
+
+def test_invalid_thinking_budget_fails_before_provider_call(monkeypatch):
+    from services import llm_service
+
+    def fail_post(*args, **kwargs):
+        raise AssertionError('provider call should not happen for invalid thinking_budget')
+
+    monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
+    monkeypatch.setattr(llm_service, 'LLM_PROVIDER', 'gemini')
+    monkeypatch.setattr('requests.post', fail_post)
+
+    with pytest.raises(ValueError):
+        llm_service.generate_text(
+            [{'role': 'user', 'content': 'hello'}],
+            max_tokens=42,
+            temperature=0,
+            thinking_budget=0,
+        )
+
+
+def test_non_gemini_provider_ignores_valid_thinking_budget(monkeypatch):
+    from services import llm_service
+
+    captured = {}
+
+    def fake_remote(messages, max_tokens, temperature):
+        captured['messages'] = messages
+        captured['max_tokens'] = max_tokens
+        captured['temperature'] = temperature
+        return 'remote output'
+
+    monkeypatch.setattr(llm_service, 'LLM_PROVIDER', 'remote_aya')
+    monkeypatch.setattr(llm_service, '_generate_with_remote_aya', fake_remote)
+
+    output = llm_service.generate_text(
+        [{'role': 'user', 'content': 'hello'}],
+        max_tokens=42,
+        temperature=0.2,
+        thinking_budget=256,
+    )
+
+    assert output == 'remote output'
+    assert captured == {
+        'messages': [{'role': 'user', 'content': 'hello'}],
+        'max_tokens': 42,
+        'temperature': 0.2,
+    }
 
 
 def test_evaluator_real_result_stores_provider_metadata():
@@ -692,7 +806,7 @@ def test_evaluator_real_result_stores_provider_metadata():
         return {
             'text': 'real speech',
             'finish_reason': 'STOP',
-            'usage_metadata': {'totalTokenCount': 99},
+            'usage_metadata': {'totalTokenCount': 99, 'thoughtsTokenCount': 55},
             'safety_metadata': [{'category': 'HARM_CATEGORY_TEST', 'probability': 'NEGLIGIBLE'}],
             'candidate_count': 1,
             'response_metadata_available': True,
@@ -707,11 +821,14 @@ def test_evaluator_real_result_stores_provider_metadata():
         model='gemini-test-model',
         temperature=0,
         max_tokens=2800,
+        thinking_budget=256,
     )
 
     assert result['generated_speech'] == 'real speech'
+    assert result['thinking_budget_requested'] == 256
     assert result['provider_finish_reason'] == 'STOP'
-    assert result['provider_usage_metadata'] == {'totalTokenCount': 99}
+    assert result['provider_usage_metadata'] == {'totalTokenCount': 99, 'thoughtsTokenCount': 55}
+    assert result['provider_thoughts_token_count'] == 55
     assert result['provider_safety_metadata'] == [
         {'category': 'HARM_CATEGORY_TEST', 'probability': 'NEGLIGIBLE'}
     ]
@@ -810,11 +927,12 @@ def test_list_available_models_cli_does_not_invoke_generation(monkeypatch, capsy
 def test_model_override_is_validated_and_carried_to_real_generation(monkeypatch):
     captured = {}
 
-    def fake_factory(provider, temperature, max_tokens, model_override=None):
+    def fake_factory(provider, temperature, max_tokens, model_override=None, thinking_budget=None):
         captured['provider'] = provider
         captured['temperature'] = temperature
         captured['max_tokens'] = max_tokens
         captured['model_override'] = model_override
+        captured['thinking_budget'] = thinking_budget
         return lambda prompt, case, evidence: 'real output'
 
     monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
@@ -840,10 +958,48 @@ def test_model_override_is_validated_and_carried_to_real_generation(monkeypatch)
         'temperature': 0,
         'max_tokens': 2800,
         'model_override': 'models/gemini-2.0-flash',
+        'thinking_budget': None,
     }
     assert report['model'] == 'gemini-2.0-flash'
     assert report['results'][0]['model'] == 'gemini-2.0-flash'
     assert report['results'][0]['generated_speech'] == 'real output'
+
+
+def test_thinking_budget_is_forwarded_and_recorded_for_real_evaluation(monkeypatch):
+    captured = {}
+
+    def fake_factory(provider, temperature, max_tokens, model_override=None, thinking_budget=None):
+        captured['thinking_budget'] = thinking_budget
+        return lambda prompt, case, evidence: {
+            'text': 'real output',
+            'usage_metadata': {'thoughtsTokenCount': 12},
+            'response_metadata_available': True,
+        }
+
+    monkeypatch.setenv('GOOGLE_AI_KEY', 'configured-for-test-only')
+    monkeypatch.setattr(
+        evaluator,
+        'list_available_text_generation_models',
+        lambda provider: ['gemini-2.0-flash'],
+    )
+    monkeypatch.setattr(evaluator, 'real_generation_function_factory', fake_factory)
+
+    report = evaluator.run_generation_evaluation(
+        method_names=[LIGHTRAG_RETRIEVAL_METHOD],
+        case_id='single_doc_exact_climate_en',
+        generation_mode=evaluator.GENERATION_MODE_REAL,
+        provider='gemini',
+        model='gemini-2.0-flash',
+        temperature=0,
+        max_tokens=2800,
+        thinking_budget=256,
+    )
+
+    result = report['results'][0]
+    assert captured['thinking_budget'] == 256
+    assert report['thinking_budget_requested'] == 256
+    assert result['thinking_budget_requested'] == 256
+    assert result['provider_thoughts_token_count'] == 12
 
 
 def test_unavailable_model_override_fails_before_generation(monkeypatch):

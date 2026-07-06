@@ -38,6 +38,7 @@ def _active_groq_key() -> str | None:
         return None
 
 GEMINI_MODEL = 'gemini-1.5-flash-latest'
+MAX_GEMINI_THINKING_BUDGET = 2048
 
 
 def _generation_result(
@@ -68,12 +69,20 @@ def generate_text(
     max_tokens: int = 1800,
     temperature: float = 0.7,
     return_metadata: bool = False,
+    thinking_budget: int | None = None,
 ) -> str | dict[str, Any]:
     """Generate text using the configured provider."""
+    _validate_thinking_budget(thinking_budget)
     provider = LLM_PROVIDER.lower().strip()
 
     if provider == 'gemini':
-        return _generate_with_gemini(messages, max_tokens, temperature, return_metadata)
+        return _generate_with_gemini(
+            messages,
+            max_tokens,
+            temperature,
+            return_metadata,
+            thinking_budget,
+        )
 
     if provider == 'groq':
         text = _generate_with_groq(messages, max_tokens, temperature)
@@ -99,6 +108,7 @@ def _generate_with_gemini(
     max_tokens: int,
     temperature: float,
     return_metadata: bool = False,
+    thinking_budget: int | None = None,
 ) -> str | dict[str, Any]:
     """Call Gemini via the REST API using requests — no google-genai SDK needed."""
     import os
@@ -131,6 +141,10 @@ def _generate_with_gemini(
             'temperature': temperature,
         },
     }
+    if thinking_budget is not None:
+        payload['generationConfig']['thinkingConfig'] = {
+            'thinkingBudget': thinking_budget,
+        }
 
     url = (
         f'https://generativelanguage.googleapis.com/v1beta/models/'
@@ -161,6 +175,17 @@ def _generate_with_gemini(
         candidate_count=len(data.get('candidates', [])),
         response_metadata_available=True,
     )
+
+
+def _validate_thinking_budget(thinking_budget: int | None) -> None:
+    if thinking_budget is None:
+        return
+    if not isinstance(thinking_budget, int) or isinstance(thinking_budget, bool):
+        raise ValueError('thinking_budget must be a positive integer or None.')
+    if thinking_budget <= 0 or thinking_budget > MAX_GEMINI_THINKING_BUDGET:
+        raise ValueError(
+            f'thinking_budget must be between 1 and {MAX_GEMINI_THINKING_BUDGET}.'
+        )
 
 
 # ── Groq ─────────────────────────────────────────────────────────────────────
