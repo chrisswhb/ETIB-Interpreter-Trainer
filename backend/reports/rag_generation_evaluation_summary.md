@@ -165,6 +165,100 @@ The earlier truncated LightRAG-style and GraphRAG-style speeches should not be
 used as evidence of graph-style generation quality until they are rerun with
 completion metadata and a controlled thinking budget.
 
+## Final Real-Generation Findings
+
+### Evaluation Controls
+
+The controlled real-generation comparisons used:
+
+- provider: `gemini`;
+- model: `gemini-2.5-flash`;
+- temperature: `0`;
+- max tokens: `2800`;
+- thinking budget: `256`;
+- real Dense mode for Dense comparisons;
+- fixed canonical prompt template;
+- fixed 3-chunk evidence context budget;
+- blinded qualitative scoring;
+- captured provider completion metadata.
+
+### Why Thinking Budget Was Added
+
+Earlier graph-style outputs for the broad-synthesis case ended mid-sentence
+with provider finish reason `MAX_TOKENS`. Provider metadata showed that Gemini
+thought-token usage consumed most of the configured output allowance. With
+`thinking_budget=256`, all fair comparison outputs completed with finish reason
+`STOP`. The truncated pre-control outputs should not be used to judge retrieval
+quality.
+
+### Discriminative Case Results
+
+#### `broad_synthesis_humanitarian_speech`
+
+Dense real retrieval had lower expected-source coverage because it missed the
+food-security and migration evidence. LightRAG-style produced the strongest
+blinded speech score, `34/35`, followed by GraphRAG-style at `28/35` and Dense
+real at `27/35`.
+
+Interpretation: LightRAG-style improved broad synthesis by retrieving the
+food-security -> migration -> health evidence chain.
+
+#### `arabic_output_from_multidoc_sources_hard`
+
+The blinded Arabic scores were:
+
+- Dense: `33/40`;
+- LightRAG-style: `34/40`;
+- GraphRAG-style: `39/40`.
+
+Interpretation: GraphRAG-style achieved complete evidence coverage and produced
+the strongest Arabic multilingual synthesis.
+
+#### `cross_language_request_fr_sources_en_hard`
+
+The blinded French scores were:
+
+- Dense: `39/40`;
+- GraphRAG-style: `33/40`.
+
+Interpretation: Dense preserved the complete climate-finance and
+regional-funding evidence bundle. GraphRAG-style selected a distractor and
+missed the regional-funding source.
+
+### Final Comparison Table
+
+| Case | Dense | LightRAG-style | GraphRAG-style | Best method | Main reason |
+| --- | ---: | ---: | ---: | --- | --- |
+| `broad_synthesis_humanitarian_speech` | `27/35` | `34/35` | `28/35` | LightRAG-style | Retrieved the food-security -> migration -> health evidence chain that Dense missed. |
+| `arabic_output_from_multidoc_sources_hard` | `33/40` | `34/40` | `39/40` | GraphRAG-style | Achieved complete expected-source, key-claim, and relation-chain coverage for the multilingual Arabic synthesis. |
+| `cross_language_request_fr_sources_en_hard` | `39/40` | Not measured | `33/40` | Dense | Preserved both climate-finance and regional-funding evidence; GraphRAG-style selected a distractor. |
+
+### Production Recommendation
+
+Keep Dense as the current production default. Do not implement automatic
+routing yet. LightRAG-style and GraphRAG-style are validated research
+prototypes, not production replacements.
+
+Graph-aware retrieval appears beneficial for some broad multi-document and
+multilingual relation-synthesis tasks. Dense remains strong for focused
+retrieval and French cross-language semantic retrieval. No universal winner was
+found, and more cases are needed before routing or product changes.
+
+### Latency Caveat
+
+Real Dense latency measurements may include cold model initialization. Do not
+compare current Dense retrieval latency directly with graph-prototype retrieval
+latency until warm Dense timing is measured. Generation latency dominates total
+end-to-end latency in the Gemini evaluations.
+
+### Research Limitations
+
+Only three discriminative real-generation cases were fully evaluated. The graph
+prototypes are local deterministic benchmark implementations, not the official
+LightRAG or Microsoft GraphRAG packages. Qualitative scores are
+benchmark-based and should be complemented by additional human and
+native-language review. Generated JSON remains ignored and was not committed.
+
 ## Future Human Scoring Rubric
 
 Later real-generation runs should use 1-5 scoring for:
