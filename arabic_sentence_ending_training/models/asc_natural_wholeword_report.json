@@ -1,0 +1,148 @@
+{
+  "n_samples": 3091,
+  "n_train": 2281,
+  "n_test": 810,
+  "labels": {
+    "damma": 485,
+    "fatha": 483,
+    "kasra": 466,
+    "none": 491,
+    "tanwin_damm": 246,
+    "tanwin_fath": 451,
+    "tanwin_kasr": 469
+  },
+  "split": "GroupShuffleSplit by utterance_id",
+  "classifier": "logreg",
+  "accuracy": 0.5395061728395062,
+  "classification_report": {
+    "damma": {
+      "precision": 0.6554621848739496,
+      "recall": 0.6724137931034483,
+      "f1-score": 0.6638297872340425,
+      "support": 116.0
+    },
+    "fatha": {
+      "precision": 0.44537815126050423,
+      "recall": 0.4140625,
+      "f1-score": 0.4291497975708502,
+      "support": 128.0
+    },
+    "kasra": {
+      "precision": 0.4357142857142857,
+      "recall": 0.5304347826086957,
+      "f1-score": 0.47843137254901963,
+      "support": 115.0
+    },
+    "none": {
+      "precision": 0.5206611570247934,
+      "recall": 0.45985401459854014,
+      "f1-score": 0.4883720930232558,
+      "support": 137.0
+    },
+    "tanwin_damm": {
+      "precision": 0.6111111111111112,
+      "recall": 0.717391304347826,
+      "f1-score": 0.66,
+      "support": 46.0
+    },
+    "tanwin_fath": {
+      "precision": 0.631578947368421,
+      "recall": 0.5179856115107914,
+      "f1-score": 0.5691699604743083,
+      "support": 139.0
+    },
+    "tanwin_kasr": {
+      "precision": 0.5384615384615384,
+      "recall": 0.5968992248062015,
+      "f1-score": 0.5661764705882353,
+      "support": 129.0
+    },
+    "accuracy": 0.5395061728395062,
+    "macro avg": {
+      "precision": 0.5483381965449433,
+      "recall": 0.558434461567929,
+      "f1-score": 0.550732783062816,
+      "support": 810.0
+    },
+    "weighted avg": {
+      "precision": 0.5430146437445955,
+      "recall": 0.5395061728395062,
+      "f1-score": 0.5387325965522867,
+      "support": 810.0
+    }
+  },
+  "confusion_matrix_labels": [
+    "damma",
+    "fatha",
+    "kasra",
+    "none",
+    "tanwin_damm",
+    "tanwin_fath",
+    "tanwin_kasr"
+  ],
+  "confusion_matrix": [
+    [
+      78,
+      8,
+      13,
+      4,
+      2,
+      3,
+      8
+    ],
+    [
+      11,
+      53,
+      22,
+      17,
+      2,
+      10,
+      13
+    ],
+    [
+      9,
+      7,
+      61,
+      15,
+      3,
+      8,
+      12
+    ],
+    [
+      9,
+      22,
+      11,
+      63,
+      5,
+      12,
+      15
+    ],
+    [
+      2,
+      3,
+      2,
+      1,
+      33,
+      1,
+      4
+    ],
+    [
+      6,
+      16,
+      18,
+      7,
+      6,
+      72,
+      14
+    ],
+    [
+      4,
+      10,
+      13,
+      14,
+      3,
+      8,
+      77
+    ]
+  ]
+}

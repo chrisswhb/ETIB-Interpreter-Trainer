@@ -1,0 +1,16 @@
+utterance_id,audio_path,reference_text,start_ms,end_ms,speaker,source
+etib_val_001,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_001.wav,ذَهَبَ الْمُدِيرُ إِلَى مَكْتَبِ الْمُتَرْجِمِ,,,,etib_validation
+etib_val_002,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_002.wav,قَرَأَ الطَّالِبُ نَصًّا عَرَبِيًّا بِصَوْتٍ وَاضِحٍ,,,,etib_validation
+etib_val_003,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_003.wav,حَضَرَ الْمُتَرْجِمُ الاجْتِمَاعَ فِي الصَّبَاحِ,,,,etib_validation
+etib_val_004,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_004.wav,كَتَبَتِ الطَّالِبَةُ تَرْجَمَةً دَقِيقَةً لِلنَّصِّ,,,,etib_validation
+etib_val_005,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_005.wav,يَشْرَحُ الأُسْتَاذُ قَاعِدَةَ الإِعْرَابِ بِمِثَالٍ بَسِيطٍ,,,,etib_validation
+etib_val_006,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_006.wav,اسْتَمَعَتِ الطَّالِبَةُ إِلَى خِطَابٍ قَصِيرٍ,,,,etib_validation
+etib_val_007,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_007.wav,قَدَّمَ الْمُتَرْجِمُ عَرْضًا مُهِمًّا أَمَامَ اللَّجْنَةِ,,,,etib_validation
+etib_val_008,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_008.wav,فَهِمَ الطُّلَّابُ مَعْنَى الْجُمْلَةِ بَعْدَ الشَّرْحِ,,,,etib_validation
+etib_val_009,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_009.wav,تَحْتَاجُ التَّرْجَمَةُ إِلَى دِقَّةٍ وَتَرْكِيزٍ,,,,etib_validation
+etib_val_010,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_010.wav,سَأَلَتِ الأُسْتَاذَةُ الطَّالِبَ عَنْ سَبَبِ الْخَطَإِ,,,,etib_validation
+etib_val_011,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_011.wav,يُصَحِّحُ النِّظَامُ نِهَايَةَ الْكَلِمَةِ بِحَذَرٍ,,,,etib_validation
+etib_val_012,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_012.wav,وَضَعَ الْمُدَرِّبُ تَمْرِينًا جَدِيدًا فِي الْمِنَصَّةِ,,,,etib_validation
+etib_val_013,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_013.wav,يَقْرَأُ الطَّالِبُ الْجُمْلَةَ ثُمَّ يُعِيدُهَا بِبُطْءٍ,,,,etib_validation
+etib_val_014,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_014.wav,تَظْهَرُ النَّتِيجَةُ بَعْدَ التَّحْلِيلِ الصَّوْتِيِّ,,,,etib_validation
+etib_val_015,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_015.wav,يُرَكِّزُ التَّمْرِينُ عَلَى الضَّمَّةِ وَالْفَتْحَةِ وَالْكَسْرَةِ,,,,etib_validation

@@ -43,8 +43,11 @@ def webm_to_wav(webm_bytes: bytes) -> tuple[np.ndarray, int]:
 
     Returns (audio_array, sample_rate)
     """
+    if not webm_bytes or len(webm_bytes) < 512:
+        raise RuntimeError("empty or too-short audio recording")
+
     with tempfile.TemporaryDirectory() as tmp:
-        in_path  = os.path.join(tmp, "input.webm")
+        in_path  = os.path.join(tmp, "input.recording")
         out_path = os.path.join(tmp, "output.wav")
 
         with open(in_path, "wb") as f:
@@ -60,8 +63,11 @@ def webm_to_wav(webm_bytes: bytes) -> tuple[np.ndarray, int]:
         ]
         result = subprocess.run(cmd, capture_output=True)
         if result.returncode != 0:
+            stderr = result.stderr.decode(errors="replace").strip()
+            if len(stderr) > 1200:
+                stderr = stderr[-1200:]
             raise RuntimeError(
-                f"ffmpeg conversion failed: {result.stderr.decode(errors='replace')}"
+                f"ffmpeg conversion failed: {stderr}"
             )
 
         return load_wav(out_path)

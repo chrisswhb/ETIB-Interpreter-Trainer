@@ -1,0 +1,149 @@
+{
+  "n_samples": 3091,
+  "n_train": 2281,
+  "n_test": 810,
+  "labels": {
+    "damma": 485,
+    "fatha": 483,
+    "kasra": 466,
+    "none": 491,
+    "tanwin_damm": 246,
+    "tanwin_fath": 451,
+    "tanwin_kasr": 469
+  },
+  "split": "GroupShuffleSplit by utterance_id",
+  "classifier": "mlp",
+  "label_mode": "exact",
+  "accuracy": 0.519753086419753,
+  "classification_report": {
+    "damma": {
+      "precision": 0.5793650793650794,
+      "recall": 0.6293103448275862,
+      "f1-score": 0.6033057851239669,
+      "support": 116.0
+    },
+    "fatha": {
+      "precision": 0.44274809160305345,
+      "recall": 0.453125,
+      "f1-score": 0.44787644787644787,
+      "support": 128.0
+    },
+    "kasra": {
+      "precision": 0.36551724137931035,
+      "recall": 0.4608695652173913,
+      "f1-score": 0.4076923076923077,
+      "support": 115.0
+    },
+    "none": {
+      "precision": 0.5981308411214953,
+      "recall": 0.46715328467153283,
+      "f1-score": 0.5245901639344263,
+      "support": 137.0
+    },
+    "tanwin_damm": {
+      "precision": 0.6326530612244898,
+      "recall": 0.6739130434782609,
+      "f1-score": 0.6526315789473685,
+      "support": 46.0
+    },
+    "tanwin_fath": {
+      "precision": 0.5826086956521739,
+      "recall": 0.48201438848920863,
+      "f1-score": 0.5275590551181102,
+      "support": 139.0
+    },
+    "tanwin_kasr": {
+      "precision": 0.5474452554744526,
+      "recall": 0.5813953488372093,
+      "f1-score": 0.5639097744360902,
+      "support": 129.0
+    },
+    "accuracy": 0.519753086419753,
+    "macro avg": {
+      "precision": 0.535495466545722,
+      "recall": 0.5353972822173128,
+      "f1-score": 0.532509301875531,
+      "support": 810.0
+    },
+    "weighted avg": {
+      "precision": 0.529088395545665,
+      "recall": 0.519753086419753,
+      "f1-score": 0.5211867240017891,
+      "support": 810.0
+    }
+  },
+  "confusion_matrix_labels": [
+    "damma",
+    "fatha",
+    "kasra",
+    "none",
+    "tanwin_damm",
+    "tanwin_fath",
+    "tanwin_kasr"
+  ],
+  "confusion_matrix": [
+    [
+      73,
+      12,
+      12,
+      5,
+      4,
+      6,
+      4
+    ],
+    [
+      14,
+      58,
+      17,
+      13,
+      3,
+      10,
+      13
+    ],
+    [
+      13,
+      13,
+      53,
+      9,
+      0,
+      12,
+      15
+    ],
+    [
+      6,
+      23,
+      20,
+      64,
+      4,
+      10,
+      10
+    ],
+    [
+      0,
+      1,
+      4,
+      1,
+      31,
+      4,
+      5
+    ],
+    [
+      11,
+      13,
+      21,
+      7,
+      5,
+      67,
+      15
+    ],
+    [
+      9,
+      11,
+      18,
+      8,
+      2,
+      6,
+      75
+    ]
+  ]
+}

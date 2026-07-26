@@ -1,0 +1,3 @@
+utterance_id,audio_path,reference_text,start_ms,end_ms,speaker,source
+sample_001,arabic_sentence_ending_training/data/raw/sample_001.wav,الْمُدِيرُ ذَهَبَ إِلَى الاجْتِمَاعِ,,,,sample
+sample_002,arabic_sentence_ending_training/data/raw/sample_002.wav,قَرَأَ الطَّالِبُ نَصًّا فِي مَكْتَبٍ هَادِئٍ,,,,sample

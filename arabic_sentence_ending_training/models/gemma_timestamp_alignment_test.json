@@ -1,0 +1,115 @@
+{
+  "test_id": "asc_main_ARA NORM  0013",
+  "original_sample_rate": 48000,
+  "used_sample_rate": 16000,
+  "reference_word_count": 10,
+  "groq_configured": true,
+  "gemma_endpoint_configured": false,
+  "rough_span_count": 10,
+  "refined_span_count": 10,
+  "refined_source": "groq_fallback_alignment",
+  "baseline_ctc": {
+    "findings": 10,
+    "correct": 8,
+    "wrong": 2,
+    "uncertain": 0,
+    "accuracy": 0.8,
+    "segmentation": "wav2vec2_ctc",
+    "sample": [
+      {
+        "status": "correct",
+        "word": "لِيَتَمَكَّنَ",
+        "expected_ending": "fatha",
+        "detected_ending": "fatha",
+        "detection_confidence": 0.6248622839922946
+      },
+      {
+        "status": "incorrect",
+        "word": "الْقَارِئُ",
+        "expected_ending": "damma",
+        "detected_ending": "kasra",
+        "detection_confidence": 0.5270307780539373
+      },
+      {
+        "status": "correct",
+        "word": "مِنْ",
+        "expected_ending": "none",
+        "detected_ending": "none",
+        "detection_confidence": 0.9897681926386669
+      },
+      {
+        "status": "correct",
+        "word": "مُتَابَعَةِ",
+        "expected_ending": "kasra",
+        "detected_ending": "kasra",
+        "detection_confidence": 0.6246404377504805
+      },
+      {
+        "status": "correct",
+        "word": "تَطَوُّرِ",
+        "expected_ending": "kasra",
+        "detected_ending": "kasra",
+        "detection_confidence": 0.5328599453410239
+      },
+      {
+        "status": "correct",
+        "word": "الْقِصَّةِ",
+        "expected_ending": "kasra",
+        "detected_ending": "kasra",
+        "detection_confidence": 0.7087952997028429
+      }
+    ]
+  },
+  "gemma_refined": {
+    "findings": 10,
+    "correct": 8,
+    "wrong": 2,
+    "uncertain": 0,
+    "accuracy": 0.8,
+    "segmentation": "groq_fallback_alignment",
+    "sample": [
+      {
+        "status": "correct",
+        "word": "لِيَتَمَكَّنَ",
+        "expected_ending": "fatha",
+        "detected_ending": "fatha",
+        "detection_confidence": 0.6248010554804034
+      },
+      {
+        "status": "incorrect",
+        "word": "الْقَارِئُ",
+        "expected_ending": "damma",
+        "detected_ending": "kasra",
+        "detection_confidence": 0.5267168061467112
+      },
+      {
+        "status": "correct",
+        "word": "مِنْ",
+        "expected_ending": "none",
+        "detected_ending": "none",
+        "detection_confidence": 0.9876203217764352
+      },
+      {
+        "status": "correct",
+        "word": "مُتَابَعَةِ",
+        "expected_ending": "kasra",
+        "detected_ending": "kasra",
+        "detection_confidence": 0.621572272728091
+      },
+      {
+        "status": "correct",
+        "word": "تَطَوُّرِ",
+        "expected_ending": "kasra",
+        "detected_ending": "kasra",
+        "detection_confidence": 0.5242895548320897
+      },
+      {
+        "status": "correct",
+        "word": "الْقِصَّةِ",
+        "expected_ending": "kasra",
+        "detected_ending": "kasra",
+        "detection_confidence": 0.7106579763659956
+      }
+    ]
+  }
+}

@@ -1,0 +1,392 @@
+{
+  "task": "forced_alignment_oracle_acoustic_ending_detection",
+  "meaning": "This uses known TextGrid word timings as the forced-alignment step. It tests whether the acoustic classifier can identify the spoken final ending when it receives the correct word-ending audio span.",
+  "features": "C:\\Users\\Ali\\Downloads\\etib_project\\etib\\arabic_sentence_ending_training\\data\\features\\asc_wordtier_balanced_700_tail650_features.npz",
+  "model": "C:\\Users\\Ali\\Downloads\\etib_project\\etib\\arabic_sentence_ending_training\\models\\sentence_ending_classifier_wordtier_tail650_rbf.joblib",
+  "samples": 4642,
+  "utterances": 1536,
+  "accuracy": 0.9937526928048255,
+  "correct": 4613,
+  "labels": {
+    "damma": {
+      "support": 700,
+      "precision": 0.9943019943019943,
+      "recall": 0.9971428571428571,
+      "f1": 0.9957203994293866
+    },
+    "fatha": {
+      "support": 700,
+      "precision": 0.9900142653352354,
+      "recall": 0.9914285714285714,
+      "f1": 0.9907209136331192
+    },
+    "kasra": {
+      "support": 700,
+      "precision": 0.9914529914529915,
+      "recall": 0.9942857142857143,
+      "f1": 0.9928673323823112
+    },
+    "none": {
+      "support": 700,
+      "precision": 0.9871428571428571,
+      "recall": 0.9871428571428571,
+      "f1": 0.9871428571428571
+    },
+    "tanwin_damm": {
+      "support": 677,
+      "precision": 1.0,
+      "recall": 0.9970457902511078,
+      "f1": 0.9985207100591716
+    },
+    "tanwin_fath": {
+      "support": 465,
+      "precision": 0.9957081545064378,
+      "recall": 0.9978494623655914,
+      "f1": 0.9967776584317938
+    },
+    "tanwin_kasr": {
+      "support": 700,
+      "precision": 0.9985632183908046,
+      "recall": 0.9928571428571429,
+      "f1": 0.995702005730659
+    }
+  },
+  "confusion_matrix_labels": [
+    "damma",
+    "fatha",
+    "kasra",
+    "none",
+    "tanwin_damm",
+    "tanwin_fath",
+    "tanwin_kasr"
+  ],
+  "confusion_matrix": [
+    [
+      698,
+      1,
+      0,
+      1,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      694,
+      2,
+      4,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      696,
+      4,
+      0,
+      0,
+      0
+    ],
+    [
+      2,
+      5,
+      1,
+      691,
+      0,
+      0,
+      1
+    ],
+    [
+      2,
+      0,
+      0,
+      0,
+      675,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      0,
+      0,
+      0,
+      464,
+      0
+    ],
+    [
+      0,
+      0,
+      3,
+      0,
+      0,
+      2,
+      695
+    ]
+  ],
+  "sample_mistakes": [
+    {
+      "utterance_id": "asc_main_ARA NORM  0026",
+      "word_index": "23",
+      "word": "الطَّائِفْ",
+      "expected": "none",
+      "detected": "kasra",
+      "start_ms": "14381.3",
+      "end_ms": "14978.8"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0047",
+      "word_index": "7",
+      "word": "كَبِيرٌ",
+      "expected": "tanwin_damm",
+      "detected": "damma",
+      "start_ms": "4199.6",
+      "end_ms": "4790.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0053",
+      "word_index": "13",
+      "word": "إِجْمَالِيِّ",
+      "expected": "kasra",
+      "detected": "none",
+      "start_ms": "10860.0",
+      "end_ms": "11805.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0106",
+      "word_index": "10",
+      "word": "الْأُوزُونَ",
+      "expected": "fatha",
+      "detected": "none",
+      "start_ms": "6770.0",
+      "end_ms": "7560.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0108",
+      "word_index": "21",
+      "word": "طَبَقٍ",
+      "expected": "tanwin_kasr",
+      "detected": "kasra",
+      "start_ms": "15560.0",
+      "end_ms": "16140.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0108",
+      "word_index": "36",
+      "word": "بِيُمْنَاهُ",
+      "expected": "damma",
+      "detected": "fatha",
+      "start_ms": "26550.0",
+      "end_ms": "27330.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0115",
+      "word_index": "3",
+      "word": "بِإِزَارٍ",
+      "expected": "tanwin_kasr",
+      "detected": "kasra",
+      "start_ms": "2290.0",
+      "end_ms": "3070.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0136",
+      "word_index": "1",
+      "word": "دَارُ",
+      "expected": "damma",
+      "detected": "none",
+      "start_ms": "630.0",
+      "end_ms": "1030.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0274",
+      "word_index": "15",
+      "word": "دُولَارْ",
+      "expected": "none",
+      "detected": "fatha",
+      "start_ms": "11190.0",
+      "end_ms": "11630.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0283",
+      "word_index": "5",
+      "word": "كُلٍّ",
+      "expected": "tanwin_kasr",
+      "detected": "kasra",
+      "start_ms": "3570.0",
+      "end_ms": "4130.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0311",
+      "word_index": "2",
+      "word": "أَرْبَعِينَ",
+      "expected": "fatha",
+      "detected": "kasra",
+      "start_ms": "1970.0",
+      "end_ms": "2310.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0317",
+      "word_index": "2",
+      "word": "إِدْرِيسِ",
+      "expected": "kasra",
+      "detected": "none",
+      "start_ms": "1460.0",
+      "end_ms": "2190.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0347",
+      "word_index": "0",
+      "word": "هَرَباً",
+      "expected": "tanwin_fath",
+      "detected": "fatha",
+      "start_ms": "110.0",
+      "end_ms": "500.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0361",
+      "word_index": "4",
+      "word": "بَدِيلٍ",
+      "expected": "tanwin_kasr",
+      "detected": "tanwin_fath",
+      "start_ms": "2940.0",
+      "end_ms": "3460.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0404",
+      "word_index": "1",
+      "word": "تَعُدْ",
+      "expected": "none",
+      "detected": "damma",
+      "start_ms": "350.0",
+      "end_ms": "760.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0437",
+      "word_index": "21",
+      "word": "بايْرِنْ",
+      "expected": "none",
+      "detected": "tanwin_kasr",
+      "start_ms": "13560.0",
+      "end_ms": "14080.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0490",
+      "word_index": "0",
+      "word": "عَكَسَتِ",
+      "expected": "kasra",
+      "detected": "none",
+      "start_ms": "120.0",
+      "end_ms": "710.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0530",
+      "word_index": "0",
+      "word": "أَظْهَرَتْ",
+      "expected": "none",
+      "detected": "fatha",
+      "start_ms": "160.0",
+      "end_ms": "720.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0586",
+      "word_index": "12",
+      "word": "مِنْ",
+      "expected": "none",
+      "detected": "fatha",
+      "start_ms": "8560.0",
+      "end_ms": "8810.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0596",
+      "word_index": "0",
+      "word": "أَمَّا",
+      "expected": "fatha",
+      "detected": "none",
+      "start_ms": "90.0",
+      "end_ms": "490.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0596",
+      "word_index": "18",
+      "word": "مُسْتَبْعَدٌ",
+      "expected": "tanwin_damm",
+      "detected": "damma",
+      "start_ms": "13400.0",
+      "end_ms": "14290.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0607",
+      "word_index": "0",
+      "word": "إِذْ",
+      "expected": "none",
+      "detected": "fatha",
+      "start_ms": "90.0",
+      "end_ms": "360.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0621",
+      "word_index": "14",
+      "word": "التَّعْلِيمِيِّ",
+      "expected": "kasra",
+      "detected": "none",
+      "start_ms": "8900.0",
+      "end_ms": "9880.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0623",
+      "word_index": "2",
+      "word": "مِنْ",
+      "expected": "none",
+      "detected": "fatha",
+      "start_ms": "760.0",
+      "end_ms": "1030.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0672",
+      "word_index": "23",
+      "word": "مُخْتَلِفَ",
+      "expected": "fatha",
+      "detected": "kasra",
+      "start_ms": "19950.0",
+      "end_ms": "20580.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0895",
+      "word_index": "6",
+      "word": "تَزِيدُمْ",
+      "expected": "none",
+      "detected": "damma",
+      "start_ms": "4110.0",
+      "end_ms": "4750.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0895",
+      "word_index": "24",
+      "word": "مَعَ",
+      "expected": "fatha",
+      "detected": "none",
+      "start_ms": "19270.0",
+      "end_ms": "19540.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0955",
+      "word_index": "3",
+      "word": "كَبِيرٍ",
+      "expected": "tanwin_kasr",
+      "detected": "tanwin_fath",
+      "start_ms": "2530.0",
+      "end_ms": "3100.0"
+    },
+    {
+      "utterance_id": "asc_main_ARA NORM  0996",
+      "word_index": "12",
+      "word": "وَخَمْسَةَ",
+      "expected": "fatha",
+      "detected": "none",
+      "start_ms": "9710.0",
+      "end_ms": "10330.0"
+    }
+  ],
+  "next_live_step": "Replace oracle TextGrid timings with an automatic aligner for user recordings: MFA Arabic acoustic model, or wav2vec2/CTC reference forced alignment. ASR remains only a rough transcript helper."
+}

@@ -27,6 +27,14 @@ let audioChunks     = [];
 let recordedBlob    = null;
 let timerInterval   = null;
 let secondsElapsed  = 0;
+let practiceTargets = [];
+let guidedWordSpans = [];
+let guidedTimers = [];
+let guidedRecording = false;
+let isolatedWordResults = [];
+let currentPracticeIndex = 0;
+const ISOLATED_WORD_CAPTURE = false;
+const USE_GUIDED_PACING = false;
 
 // ── Load exercises ─────────────────────────────────────────────────────────────
 async function loadExercises() {
@@ -118,16 +126,49 @@ document.getElementById("custom-start-btn").addEventListener("click", () => {
 });
 
 function extractFinalHarakaWords(sentence) {
-  const finalHaraka = /[\u064b-\u0650]$/;
+  const finalHaraka = /[\u064b-\u0652]$/;
   return sentence
     .split(/\s+/)
     .map(w => w.replace(/[،,.!?؛:]+$/g, ""))
     .filter(w => finalHaraka.test(w));
 }
 
+function extractPracticeTargets(sentence) {
+  const finalHaraka = /[\u064b-\u0652]$/;
+  return sentence
+    .split(/\s+/)
+    .map((raw, index) => ({
+      index,
+      word: raw.replace(/[،,.!?؛:]+$/g, ""),
+    }))
+    .filter(item => item.word && finalHaraka.test(item.word));
+}
+
+function extractAllWordTargets(sentence) {
+  return sentence
+    .split(/\s+/)
+    .map((raw, index) => ({
+      index,
+      word: cleanArabicWord(raw),
+      raw,
+    }))
+    .filter(item => item.word);
+}
+
+function cleanArabicWord(word) {
+  return String(word || "").replace(/^[^\u0600-\u06FF\u064b-\u0652]+|[^\u0600-\u06FF\u064b-\u0652]+$/g, "");
+}
+
 // ── Open exercise ──────────────────────────────────────────────────────────────
 function openExercise(ex) {
   currentExercise = ex;
+  practiceTargets = extractPracticeTargets(ex.reference);
+  isolatedWordResults = [];
+  currentPracticeIndex = 0;
+  if (!practiceTargets.length) {
+    alert("لا توجد كلمات منتهية بحركة أو تنوين في النص. أضف التشكيل النهائي للكلمات أولاً.");
+    return;
+  }
 
   document.getElementById("exercise-selector").style.display = "none";
   const panel = document.getElementById("exercise-panel");
@@ -138,21 +179,60 @@ function openExercise(ex) {
   document.getElementById("exercise-tip").textContent = ex.tip || "";
 
   // Render reference sentence with focus words highlighted
-  renderReferenceSentence(ex.reference, ex.focus || []);
+  renderReferenceSentence(ex.reference, extractAllWordTargets(ex.reference), null);
+  updateSentencePracticeHint();
 
   // Reset UI state
   resetRecorder();
   document.getElementById("results-panel").style.display = "none";
 }
 
-function renderReferenceSentence(sentence, focusWords) {
+function renderReferenceSentence(sentence, focusTargets, currentIndex = null) {
   const container = document.getElementById("reference-display");
-  let html = sentence;
-  focusWords.forEach(fw => {
-    html = html.replace(fw, `<span class="focus-word">${fw}</span>`);
-  });
+  const targetByIndex = new Map((focusTargets || []).map(item => [item.index, item.word]));
+  const html = sentence.split(/\s+/).map((raw, index) => {
+    const clean = raw.replace(/[،,.!?؛:]+$/g, "");
+    const cls = index === currentIndex ? "focus-word current-focus-word" : "focus-word";
+    return targetByIndex.has(index)
+      ? raw.replace(clean, `<span class="${cls}">${clean}</span>`)
+      : raw;
+  }).join(" ");
   container.innerHTML = html;
   container.setAttribute("dir", "rtl");
+}
+
+function updateSentencePracticeHint() {
+  const wordEl = document.getElementById("current-practice-word");
+  const progressEl = document.getElementById("practice-progress");
+  const nextBtn = document.getElementById("next-word-btn");
+  const analyzeBtnEl = document.getElementById("analyze-btn");
+  if (ISOLATED_WORD_CAPTURE) {
+    const currentTarget = practiceTargets[currentPracticeIndex];
+    if (wordEl) wordEl.textContent = currentTarget ? currentTarget.word : "انتهى التدريب";
+    if (progressEl) {
+      progressEl.textContent = currentTarget
+        ? `سجّل هذه الكلمة فقط: ${currentPracticeIndex + 1} / ${practiceTargets.length}`
+        : `تم تحليل ${isolatedWordResults.length} كلمة.`;
+    }
+    if (analyzeBtnEl) analyzeBtnEl.textContent = "تحليل الكلمة";
+    renderReferenceSentence(
+      currentExercise.reference,
+      extractAllWordTargets(currentExercise.reference),
+      currentTarget ? currentTarget.index : null,
+    );
+    resetRecorder();
+    if (nextBtn) nextBtn.style.display = "none";
+    return;
+  }
+
+  if (wordEl) wordEl.textContent = "اتبع تظليل الكلمات واقرأ كل كلمة عند ظهورها.";
+  if (progressEl) {
+    progressEl.textContent = `سجّل الجملة كاملة. سيتم تحليل ${practiceTargets.length} كلمة منتهية بحركة أو تنوين.`;
+  }
+  if (analyzeBtnEl) analyzeBtnEl.textContent = "تحليل الجملة";
+  renderReferenceSentence(currentExercise.reference, extractAllWordTargets(currentExercise.reference), null);
+  resetRecorder();
+  if (nextBtn) nextBtn.style.display = "none";
 }
 
 // ── Back button ────────────────────────────────────────────────────────────────
@@ -168,13 +248,20 @@ const recordLabel = document.getElementById("record-label");
 const timerEl     = document.getElementById("timer");
 const playback    = document.getElementById("playback");
 const analyzeBtn  = document.getElementById("analyze-btn");
+const nextWordBtn = document.getElementById("next-word-btn");
 
 recordBtn.addEventListener("click", toggleRecording);
+if (nextWordBtn) {
+  nextWordBtn.addEventListener("click", () => {
+    nextWordBtn.style.display = "none";
+  });
+}
 
 async function toggleRecording() {
   if (mediaRecorder && mediaRecorder.state === "recording") {
     // Stop
     mediaRecorder.stop();
+    stopGuidedTiming(false);
     clearInterval(timerInterval);
     recordBtn.classList.remove("active");
     recordLabel.textContent = "إعادة التسجيل";
@@ -186,13 +273,22 @@ async function toggleRecording() {
       audioChunks = [];
       recordedBlob = null;
       analyzeBtn.style.display = "none";
+      if (nextWordBtn) nextWordBtn.style.display = "none";
       playback.style.display = "none";
       document.getElementById("results-panel").style.display = "none";
 
-      mediaRecorder = new MediaRecorder(stream);
+      const mimeCandidates = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+      ];
+      const selectedMime = mimeCandidates.find(type => MediaRecorder.isTypeSupported(type)) || "";
+      mediaRecorder = selectedMime
+        ? new MediaRecorder(stream, { mimeType: selectedMime })
+        : new MediaRecorder(stream);
       mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
       mediaRecorder.onstop = () => {
-        recordedBlob = new Blob(audioChunks, { type: "audio/webm" });
+        const recordedType = selectedMime || mediaRecorder.mimeType || "audio/webm";
+        recordedBlob = new Blob(audioChunks, { type: recordedType });
         const url = URL.createObjectURL(recordedBlob);
         playback.src = url;
         playback.style.display = "block";
@@ -201,6 +297,7 @@ async function toggleRecording() {
       };
 
       mediaRecorder.start(100);
+      if (USE_GUIDED_PACING) beginGuidedTiming();
       recordBtn.classList.add("active");
       recordLabel.textContent = "إيقاف التسجيل";
       secondsElapsed = 0;
@@ -220,14 +317,86 @@ async function toggleRecording() {
 
 function resetRecorder() {
   if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+  stopGuidedTiming();
   clearInterval(timerInterval);
   recordBtn.classList.remove("active");
   recordLabel.textContent = "ابدأ التسجيل";
   timerEl.style.display = "none";
   playback.style.display = "none";
   analyzeBtn.style.display = "none";
+  if (nextWordBtn) nextWordBtn.style.display = "none";
   audioChunks = [];
   recordedBlob = null;
+  guidedWordSpans = [];
+}
+
+function beginGuidedTiming() {
+  stopGuidedTiming();
+  if (!currentExercise || !currentExercise.reference) return;
+
+  const words = extractAllWordTargets(currentExercise.reference);
+  guidedWordSpans = buildGuidedWordSpans(words);
+  guidedRecording = true;
+
+  const wordEl = document.getElementById("current-practice-word");
+  const progressEl = document.getElementById("practice-progress");
+  const totalMs = guidedWordSpans.length
+    ? Math.ceil(guidedWordSpans[guidedWordSpans.length - 1].end * 1000 + 350)
+    : 0;
+
+  guidedWordSpans.forEach((span, displayIndex) => {
+    guidedTimers.push(setTimeout(() => {
+      if (!guidedRecording) return;
+      renderReferenceSentence(currentExercise.reference, words, span.word_index);
+      if (wordEl) wordEl.textContent = span.word;
+      if (progressEl) progressEl.textContent = `الكلمة ${displayIndex + 1} / ${guidedWordSpans.length}`;
+    }, Math.max(0, span.start * 1000)));
+  });
+
+  guidedTimers.push(setTimeout(() => {
+    if (!guidedRecording) return;
+    renderReferenceSentence(currentExercise.reference, words, null);
+    if (wordEl) wordEl.textContent = "انتهى التسجيل. يمكنك الآن التحليل.";
+    if (progressEl) progressEl.textContent = "تم إنشاء توقيت تقريبي لكل كلمة اعتمادا على القراءة الموجهة.";
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
+      clearInterval(timerInterval);
+      recordBtn.classList.remove("active");
+      recordLabel.textContent = "إعادة التسجيل";
+      timerEl.style.display = "none";
+    }
+    stopGuidedTiming(false);
+  }, totalMs));
+}
+
+function stopGuidedTiming(clearSpans = true) {
+  guidedRecording = false;
+  guidedTimers.forEach(id => clearTimeout(id));
+  guidedTimers = [];
+  if (clearSpans) guidedWordSpans = [];
+}
+
+function buildGuidedWordSpans(words) {
+  let cursor = 0.65;
+  return words.map(item => {
+    const duration = guidedWordDuration(item.word);
+    const span = {
+      word_index: item.index,
+      word: item.word,
+      start: Number(cursor.toFixed(3)),
+      end: Number((cursor + duration).toFixed(3)),
+      source: "frontend_guided_pacing",
+    };
+    cursor += duration + 0.16;
+    return span;
+  });
+}
+
+function guidedWordDuration(word) {
+  const letters = (word.match(/[\u0621-\u064a]/g) || []).length;
+  const diacritics = (word.match(/[\u064b-\u0652]/g) || []).length;
+  const ms = 480 + letters * 70 + diacritics * 28;
+  return Math.min(1.65, Math.max(0.62, ms / 1000));
 }
 
 // ── Analyze ────────────────────────────────────────────────────────────────────
@@ -235,6 +404,9 @@ analyzeBtn.addEventListener("click", analyzeRecording);
 
 async function analyzeRecording() {
   if (!recordedBlob || !currentExercise) return;
+  if (ISOLATED_WORD_CAPTURE) {
+    return analyzeIsolatedWordRecording();
+  }
 
   const spinner    = document.getElementById("analyzing-spinner");
   const resultsDiv = document.getElementById("results-panel");
@@ -244,24 +416,125 @@ async function analyzeRecording() {
   resultsDiv.style.display = "none";
 
   const formData = new FormData();
-  formData.append("audio", recordedBlob, "recording.webm");
+  const audioExt = (recordedBlob.type || "").includes("mp4") ? "mp4" : "webm";
+  formData.append("audio", recordedBlob, `recording.${audioExt}`);
   formData.append("reference_sentence", currentExercise.reference);
-  formData.append("focus_words", JSON.stringify(currentExercise.focus || []));
   formData.append("exercise_id", currentExercise.id);
-  formData.append("feedback_language", "ar");
+  if (guidedWordSpans.length) {
+    formData.append("word_spans_json", JSON.stringify(guidedWordSpans));
+  }
 
   try {
-    const resp = await fetch("/api/analyze", { method: "POST", body: formData });
-    if (!resp.ok) throw new Error(`Server error ${resp.status}`);
+    const resp = await fetch("/api/analyze-trained", { method: "POST", body: formData });
+    if (!resp.ok) {
+      let detail = `Server error ${resp.status}`;
+      try {
+        const errData = await resp.json();
+        detail = errData.detail || detail;
+      } catch (_) {}
+      throw new Error(detail);
+    }
     const data = await resp.json();
 
     renderResults(data);
+    if (nextWordBtn) nextWordBtn.style.display = "none";
   } catch (err) {
-    alert("حدث خطأ أثناء التحليل: " + err.message);
+    alert("حدث خطأ أثناء التحليل: " + shortErrorMessage(err.message));
   } finally {
     spinner.style.display = "none";
     analyzeBtn.style.display = "inline-block";
   }
+}
+
+async function analyzeIsolatedWordRecording() {
+  const currentTarget = practiceTargets[currentPracticeIndex];
+  if (!recordedBlob || !currentExercise || !currentTarget) return;
+
+  const spinner = document.getElementById("analyzing-spinner");
+  const resultsDiv = document.getElementById("results-panel");
+
+  analyzeBtn.style.display = "none";
+  spinner.style.display = "block";
+  resultsDiv.style.display = "none";
+
+  const formData = new FormData();
+  const audioExt = (recordedBlob.type || "").includes("mp4") ? "mp4" : "webm";
+  formData.append("audio", recordedBlob, `word-${currentTarget.index}.${audioExt}`);
+  formData.append("reference_word", currentTarget.word);
+  formData.append("word_index", String(currentTarget.index));
+  formData.append("exercise_id", currentExercise.id);
+
+  try {
+    const resp = await fetch("/api/analyze-guided-word", { method: "POST", body: formData });
+    if (!resp.ok) {
+      let detail = `Server error ${resp.status}`;
+      try {
+        const errData = await resp.json();
+        detail = errData.detail || detail;
+      } catch (_) {}
+      throw new Error(detail);
+    }
+    const data = await resp.json();
+    const finding = (data.iraab_findings || [])[0];
+    if (finding) isolatedWordResults.push(finding);
+
+    currentPracticeIndex += 1;
+    renderIsolatedWordSummary();
+
+    if (currentPracticeIndex < practiceTargets.length) {
+      updateSentencePracticeHint();
+    } else {
+      const wordEl = document.getElementById("current-practice-word");
+      const progressEl = document.getElementById("practice-progress");
+      if (wordEl) wordEl.textContent = "انتهى التدريب";
+      if (progressEl) progressEl.textContent = `النتيجة: ${isolatedWordResults.filter(f => f.status === "correct").length} / ${isolatedWordResults.length}`;
+      renderReferenceSentence(currentExercise.reference, extractAllWordTargets(currentExercise.reference), null);
+      resetRecorder();
+    }
+  } catch (err) {
+    alert("حدث خطأ أثناء التحليل: " + shortErrorMessage(err.message));
+    analyzeBtn.style.display = "inline-block";
+  } finally {
+    spinner.style.display = "none";
+  }
+}
+
+function renderIsolatedWordSummary() {
+  renderResults({
+    reference_text: currentExercise.reference,
+    iraab_findings: isolatedWordResults,
+    delivery: {},
+    model_provenance: {
+      mode: "isolated_guided_word_capture",
+      acoustic: "one recording per target word, no sentence alignment",
+    },
+    exercise_id: currentExercise.id,
+  });
+}
+
+function renderSpeechTranscript(data, container) {
+  const speech = data.speech_transcript;
+  if (!speech) return;
+  const block = document.createElement("div");
+  block.className = "practice-summary";
+  const transcript = speech.transcript || "—";
+  const diacritized = speech.diacritized_transcript || "—";
+  const provider = speech.provider || "unknown";
+  const error = speech.error ? `<div class="finding-explanation">ASR note: ${speech.error}</div>` : "";
+  block.innerHTML = `
+    <div><strong>ASR provider:</strong> ${provider}</div>
+    <div class="arabic-text" dir="rtl"><strong>Transcript:</strong> ${transcript}</div>
+    <div class="arabic-text" dir="rtl"><strong>With tashkeel hypothesis:</strong> ${diacritized}</div>
+    ${error}
+  `;
+  container.appendChild(block);
+}
+
+function shortErrorMessage(message) {
+  if (!message) return "خطأ غير معروف";
+  const firstLine = String(message).split(/\r?\n/)[0];
+  if (firstLine.length <= 260) return firstLine;
+  return firstLine.slice(0, 260) + "...";
 }
 
 // ── Render results ─────────────────────────────────────────────────────────────
@@ -272,6 +545,7 @@ function renderResults(data) {
   // Word findings
   const findingsDiv = document.getElementById("word-findings");
   findingsDiv.innerHTML = "";
+  renderSpeechTranscript(data, findingsDiv);
 
   (data.iraab_findings || []).forEach(f => {
     const statusLabel = { correct: "صحيح ✓", incorrect: "خطأ ✗", uncertain: "غير محدد ?" }[f.status] || f.status;

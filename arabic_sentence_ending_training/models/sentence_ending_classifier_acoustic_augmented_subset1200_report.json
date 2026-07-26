@@ -1,0 +1,149 @@
+{
+  "n_samples": 1200,
+  "n_train": 895,
+  "n_test": 305,
+  "labels": {
+    "damma": 206,
+    "fatha": 130,
+    "kasra": 199,
+    "none": 257,
+    "tanwin_damm": 92,
+    "tanwin_fath": 144,
+    "tanwin_kasr": 172
+  },
+  "split": "GroupShuffleSplit by utterance_id",
+  "classifier": "rbf_svc",
+  "label_mode": "exact",
+  "accuracy": 0.9770491803278688,
+  "classification_report": {
+    "damma": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 53.0
+    },
+    "fatha": {
+      "precision": 0.90625,
+      "recall": 0.9666666666666667,
+      "f1-score": 0.9354838709677419,
+      "support": 30.0
+    },
+    "kasra": {
+      "precision": 0.9508196721311475,
+      "recall": 1.0,
+      "f1-score": 0.9747899159663865,
+      "support": 58.0
+    },
+    "none": {
+      "precision": 0.9833333333333333,
+      "recall": 0.9833333333333333,
+      "f1-score": 0.9833333333333333,
+      "support": 60.0
+    },
+    "tanwin_damm": {
+      "precision": 1.0,
+      "recall": 0.9230769230769231,
+      "f1-score": 0.96,
+      "support": 13.0
+    },
+    "tanwin_fath": {
+      "precision": 1.0,
+      "recall": 0.918918918918919,
+      "f1-score": 0.9577464788732394,
+      "support": 37.0
+    },
+    "tanwin_kasr": {
+      "precision": 1.0,
+      "recall": 0.9814814814814815,
+      "f1-score": 0.9906542056074766,
+      "support": 54.0
+    },
+    "accuracy": 0.9770491803278688,
+    "macro avg": {
+      "precision": 0.9772004293520686,
+      "recall": 0.9676396176396178,
+      "f1-score": 0.9717154006783112,
+      "support": 305.0
+    },
+    "weighted avg": {
+      "precision": 0.9781476753560869,
+      "recall": 0.9770491803278688,
+      "f1-score": 0.9770959936924468,
+      "support": 305.0
+    }
+  },
+  "confusion_matrix_labels": [
+    "damma",
+    "fatha",
+    "kasra",
+    "none",
+    "tanwin_damm",
+    "tanwin_fath",
+    "tanwin_kasr"
+  ],
+  "confusion_matrix": [
+    [
+      53,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      29,
+      1,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      58,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      1,
+      59,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      12,
+      0,
+      0
+    ],
+    [
+      0,
+      3,
+      0,
+      0,
+      0,
+      34,
+      0
+    ],
+    [
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      53
+    ]
+  ]
+}

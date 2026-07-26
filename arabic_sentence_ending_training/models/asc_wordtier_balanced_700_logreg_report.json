@@ -1,0 +1,149 @@
+{
+  "n_samples": 4642,
+  "n_train": 3501,
+  "n_test": 1141,
+  "labels": {
+    "damma": 700,
+    "fatha": 700,
+    "kasra": 700,
+    "none": 700,
+    "tanwin_damm": 677,
+    "tanwin_fath": 465,
+    "tanwin_kasr": 700
+  },
+  "split": "GroupShuffleSplit by utterance_id",
+  "classifier": "logreg",
+  "label_mode": "exact",
+  "accuracy": 0.9728308501314636,
+  "classification_report": {
+    "damma": {
+      "precision": 0.9884393063583815,
+      "recall": 0.9771428571428571,
+      "f1-score": 0.9827586206896551,
+      "support": 175.0
+    },
+    "fatha": {
+      "precision": 0.96875,
+      "recall": 0.9567901234567902,
+      "f1-score": 0.9627329192546584,
+      "support": 162.0
+    },
+    "kasra": {
+      "precision": 0.9659090909090909,
+      "recall": 0.9770114942528736,
+      "f1-score": 0.9714285714285714,
+      "support": 174.0
+    },
+    "none": {
+      "precision": 0.9354838709677419,
+      "recall": 0.9456521739130435,
+      "f1-score": 0.9405405405405406,
+      "support": 184.0
+    },
+    "tanwin_damm": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 188.0
+    },
+    "tanwin_fath": {
+      "precision": 0.9652173913043478,
+      "recall": 1.0,
+      "f1-score": 0.9823008849557522,
+      "support": 111.0
+    },
+    "tanwin_kasr": {
+      "precision": 0.986013986013986,
+      "recall": 0.9591836734693877,
+      "f1-score": 0.9724137931034482,
+      "support": 147.0
+    },
+    "accuracy": 0.9728308501314636,
+    "macro avg": {
+      "precision": 0.972830520793364,
+      "recall": 0.9736829031764217,
+      "f1-score": 0.9731679042818037,
+      "support": 1141.0
+    },
+    "weighted avg": {
+      "precision": 0.9730015592180558,
+      "recall": 0.9728308501314636,
+      "f1-score": 0.9728428994253029,
+      "support": 1141.0
+    }
+  },
+  "confusion_matrix_labels": [
+    "damma",
+    "fatha",
+    "kasra",
+    "none",
+    "tanwin_damm",
+    "tanwin_fath",
+    "tanwin_kasr"
+  ],
+  "confusion_matrix": [
+    [
+      171,
+      1,
+      0,
+      3,
+      0,
+      0,
+      0
+    ],
+    [
+      1,
+      155,
+      0,
+      6,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      170,
+      2,
+      0,
+      1,
+      1
+    ],
+    [
+      1,
+      4,
+      3,
+      174,
+      0,
+      1,
+      1
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      188,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      111,
+      0
+    ],
+    [
+      0,
+      0,
+      3,
+      1,
+      0,
+      2,
+      141
+    ]
+  ]
+}

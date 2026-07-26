@@ -1,0 +1,25 @@
+{
+  "run": "cohere250_clean_eval",
+  "date": "2026-07-22",
+  "base_model": "google/gemma-2-2b-it",
+  "method": "Cohere Transcribe Arabic ASR + Gemma QLoRA tanween/tashkeel correction",
+  "training_data": {
+    "file": "arabic_sentence_ending_training/data/gemma_tanween/gemma_tanween_plus_cohere250_train.jsonl",
+    "examples": 1065,
+    "tanween_labels": 1705
+  },
+  "evaluation_data": {
+    "file": "arabic_sentence_ending_training/data/gemma_tanween/cohere_tanween_holdout_clean_100.jsonl",
+    "examples": 100,
+    "tanween_labels": 266
+  },
+  "summary": {
+    "matched_words": 1127,
+    "ending_correct": 1097,
+    "tanween_words": 190,
+    "tanween_correct": 179,
+    "ending_accuracy": 0.9733806566104702,
+    "tanween_accuracy": 0.9421052631578948
+  },
+  "conclusion": "The expert's Cohere + Gemma QLoRA text-restoration proposal is successful on the clean held-out Cohere ASR evaluation set. This still solves text/tanween restoration, not direct acoustic pronunciation-error detection."
+}

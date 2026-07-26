@@ -9,3 +9,13 @@ backend/venv/
 .codex/
 *.log
 .DS_Store
+arabic_ending_training/
+arabic_sentence_ending_training/data/raw/
+arabic_sentence_ending_training/data/features/
+arabic_sentence_ending_training/models/asr_finetune_bundle_50/
+arabic_sentence_ending_training/models/asr_finetune_bundle_50.zip
+arabic_sentence_ending_training/models/upload_ready*/
+arabic_sentence_ending_training/models/*adapter*.zip
+arabic_sentence_ending_training/models/gemma-tanween-qlora-adapter/
+arabic_sentence_ending_training/models/*.safetensors
+arabic_sentence_ending_training/models/*.pt

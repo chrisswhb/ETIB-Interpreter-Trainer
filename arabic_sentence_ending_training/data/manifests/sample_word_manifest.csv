@@ -1,0 +1,11 @@
+﻿utterance_id,audio_path,reference_text,word_index,word,expected_ending,start_ms,end_ms,speaker,source
+sample_001,arabic_sentence_ending_training/data/raw/sample_001.wav,الْمُدِيرُ ذَهَبَ إِلَى الاجْتِمَاعِ,0,الْمُدِيرُ,damma,,,,sample
+sample_001,arabic_sentence_ending_training/data/raw/sample_001.wav,الْمُدِيرُ ذَهَبَ إِلَى الاجْتِمَاعِ,1,ذَهَبَ,fatha,,,,sample
+sample_001,arabic_sentence_ending_training/data/raw/sample_001.wav,الْمُدِيرُ ذَهَبَ إِلَى الاجْتِمَاعِ,2,إِلَى,ignore,,,,sample
+sample_001,arabic_sentence_ending_training/data/raw/sample_001.wav,الْمُدِيرُ ذَهَبَ إِلَى الاجْتِمَاعِ,3,الاجْتِمَاعِ,kasra,,,,sample
+sample_002,arabic_sentence_ending_training/data/raw/sample_002.wav,قَرَأَ الطَّالِبُ نَصًّا فِي مَكْتَبٍ هَادِئٍ,0,قَرَأَ,fatha,,,,sample
+sample_002,arabic_sentence_ending_training/data/raw/sample_002.wav,قَرَأَ الطَّالِبُ نَصًّا فِي مَكْتَبٍ هَادِئٍ,1,الطَّالِبُ,damma,,,,sample
+sample_002,arabic_sentence_ending_training/data/raw/sample_002.wav,قَرَأَ الطَّالِبُ نَصًّا فِي مَكْتَبٍ هَادِئٍ,2,نَصًّا,tanwin_fath,,,,sample
+sample_002,arabic_sentence_ending_training/data/raw/sample_002.wav,قَرَأَ الطَّالِبُ نَصًّا فِي مَكْتَبٍ هَادِئٍ,3,فِي,ignore,,,,sample
+sample_002,arabic_sentence_ending_training/data/raw/sample_002.wav,قَرَأَ الطَّالِبُ نَصًّا فِي مَكْتَبٍ هَادِئٍ,4,مَكْتَبٍ,tanwin_kasr,,,,sample
+sample_002,arabic_sentence_ending_training/data/raw/sample_002.wav,قَرَأَ الطَّالِبُ نَصًّا فِي مَكْتَبٍ هَادِئٍ,5,هَادِئٍ,tanwin_kasr,,,,sample

@@ -1,0 +1,84 @@
+﻿utterance_id,audio_path,reference_text,word_index,word,expected_ending,start_ms,end_ms,speaker,source
+etib_val_001,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_001.wav,ذَهَبَ الْمُدِيرُ إِلَى مَكْتَبِ الْمُتَرْجِمِ,0,ذَهَبَ,fatha,,,,etib_validation
+etib_val_001,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_001.wav,ذَهَبَ الْمُدِيرُ إِلَى مَكْتَبِ الْمُتَرْجِمِ,1,الْمُدِيرُ,damma,,,,etib_validation
+etib_val_001,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_001.wav,ذَهَبَ الْمُدِيرُ إِلَى مَكْتَبِ الْمُتَرْجِمِ,2,إِلَى,ignore,,,,etib_validation
+etib_val_001,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_001.wav,ذَهَبَ الْمُدِيرُ إِلَى مَكْتَبِ الْمُتَرْجِمِ,3,مَكْتَبِ,kasra,,,,etib_validation
+etib_val_001,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_001.wav,ذَهَبَ الْمُدِيرُ إِلَى مَكْتَبِ الْمُتَرْجِمِ,4,الْمُتَرْجِمِ,kasra,,,,etib_validation
+etib_val_002,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_002.wav,قَرَأَ الطَّالِبُ نَصًّا عَرَبِيًّا بِصَوْتٍ وَاضِحٍ,0,قَرَأَ,fatha,,,,etib_validation
+etib_val_002,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_002.wav,قَرَأَ الطَّالِبُ نَصًّا عَرَبِيًّا بِصَوْتٍ وَاضِحٍ,1,الطَّالِبُ,damma,,,,etib_validation
+etib_val_002,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_002.wav,قَرَأَ الطَّالِبُ نَصًّا عَرَبِيًّا بِصَوْتٍ وَاضِحٍ,2,نَصًّا,tanwin_fath,,,,etib_validation
+etib_val_002,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_002.wav,قَرَأَ الطَّالِبُ نَصًّا عَرَبِيًّا بِصَوْتٍ وَاضِحٍ,3,عَرَبِيًّا,tanwin_fath,,,,etib_validation
+etib_val_002,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_002.wav,قَرَأَ الطَّالِبُ نَصًّا عَرَبِيًّا بِصَوْتٍ وَاضِحٍ,4,بِصَوْتٍ,tanwin_kasr,,,,etib_validation
+etib_val_002,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_002.wav,قَرَأَ الطَّالِبُ نَصًّا عَرَبِيًّا بِصَوْتٍ وَاضِحٍ,5,وَاضِحٍ,tanwin_kasr,,,,etib_validation
+etib_val_003,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_003.wav,حَضَرَ الْمُتَرْجِمُ الاجْتِمَاعَ فِي الصَّبَاحِ,0,حَضَرَ,fatha,,,,etib_validation
+etib_val_003,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_003.wav,حَضَرَ الْمُتَرْجِمُ الاجْتِمَاعَ فِي الصَّبَاحِ,1,الْمُتَرْجِمُ,damma,,,,etib_validation
+etib_val_003,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_003.wav,حَضَرَ الْمُتَرْجِمُ الاجْتِمَاعَ فِي الصَّبَاحِ,2,الاجْتِمَاعَ,fatha,,,,etib_validation
+etib_val_003,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_003.wav,حَضَرَ الْمُتَرْجِمُ الاجْتِمَاعَ فِي الصَّبَاحِ,3,فِي,ignore,,,,etib_validation
+etib_val_003,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_003.wav,حَضَرَ الْمُتَرْجِمُ الاجْتِمَاعَ فِي الصَّبَاحِ,4,الصَّبَاحِ,kasra,,,,etib_validation
+etib_val_004,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_004.wav,كَتَبَتِ الطَّالِبَةُ تَرْجَمَةً دَقِيقَةً لِلنَّصِّ,0,كَتَبَتِ,kasra,,,,etib_validation
+etib_val_004,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_004.wav,كَتَبَتِ الطَّالِبَةُ تَرْجَمَةً دَقِيقَةً لِلنَّصِّ,1,الطَّالِبَةُ,damma,,,,etib_validation
+etib_val_004,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_004.wav,كَتَبَتِ الطَّالِبَةُ تَرْجَمَةً دَقِيقَةً لِلنَّصِّ,2,تَرْجَمَةً,tanwin_fath,,,,etib_validation
+etib_val_004,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_004.wav,كَتَبَتِ الطَّالِبَةُ تَرْجَمَةً دَقِيقَةً لِلنَّصِّ,3,دَقِيقَةً,tanwin_fath,,,,etib_validation
+etib_val_004,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_004.wav,كَتَبَتِ الطَّالِبَةُ تَرْجَمَةً دَقِيقَةً لِلنَّصِّ,4,لِلنَّصِّ,kasra,,,,etib_validation
+etib_val_005,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_005.wav,يَشْرَحُ الأُسْتَاذُ قَاعِدَةَ الإِعْرَابِ بِمِثَالٍ بَسِيطٍ,0,يَشْرَحُ,damma,,,,etib_validation
+etib_val_005,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_005.wav,يَشْرَحُ الأُسْتَاذُ قَاعِدَةَ الإِعْرَابِ بِمِثَالٍ بَسِيطٍ,1,الأُسْتَاذُ,damma,,,,etib_validation
+etib_val_005,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_005.wav,يَشْرَحُ الأُسْتَاذُ قَاعِدَةَ الإِعْرَابِ بِمِثَالٍ بَسِيطٍ,2,قَاعِدَةَ,fatha,,,,etib_validation
+etib_val_005,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_005.wav,يَشْرَحُ الأُسْتَاذُ قَاعِدَةَ الإِعْرَابِ بِمِثَالٍ بَسِيطٍ,3,الإِعْرَابِ,kasra,,,,etib_validation
+etib_val_005,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_005.wav,يَشْرَحُ الأُسْتَاذُ قَاعِدَةَ الإِعْرَابِ بِمِثَالٍ بَسِيطٍ,4,بِمِثَالٍ,tanwin_kasr,,,,etib_validation
+etib_val_005,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_005.wav,يَشْرَحُ الأُسْتَاذُ قَاعِدَةَ الإِعْرَابِ بِمِثَالٍ بَسِيطٍ,5,بَسِيطٍ,tanwin_kasr,,,,etib_validation
+etib_val_006,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_006.wav,اسْتَمَعَتِ الطَّالِبَةُ إِلَى خِطَابٍ قَصِيرٍ,0,اسْتَمَعَتِ,kasra,,,,etib_validation
+etib_val_006,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_006.wav,اسْتَمَعَتِ الطَّالِبَةُ إِلَى خِطَابٍ قَصِيرٍ,1,الطَّالِبَةُ,damma,,,,etib_validation
+etib_val_006,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_006.wav,اسْتَمَعَتِ الطَّالِبَةُ إِلَى خِطَابٍ قَصِيرٍ,2,إِلَى,ignore,,,,etib_validation
+etib_val_006,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_006.wav,اسْتَمَعَتِ الطَّالِبَةُ إِلَى خِطَابٍ قَصِيرٍ,3,خِطَابٍ,tanwin_kasr,,,,etib_validation
+etib_val_006,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_006.wav,اسْتَمَعَتِ الطَّالِبَةُ إِلَى خِطَابٍ قَصِيرٍ,4,قَصِيرٍ,tanwin_kasr,,,,etib_validation
+etib_val_007,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_007.wav,قَدَّمَ الْمُتَرْجِمُ عَرْضًا مُهِمًّا أَمَامَ اللَّجْنَةِ,0,قَدَّمَ,fatha,,,,etib_validation
+etib_val_007,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_007.wav,قَدَّمَ الْمُتَرْجِمُ عَرْضًا مُهِمًّا أَمَامَ اللَّجْنَةِ,1,الْمُتَرْجِمُ,damma,,,,etib_validation
+etib_val_007,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_007.wav,قَدَّمَ الْمُتَرْجِمُ عَرْضًا مُهِمًّا أَمَامَ اللَّجْنَةِ,2,عَرْضًا,tanwin_fath,,,,etib_validation
+etib_val_007,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_007.wav,قَدَّمَ الْمُتَرْجِمُ عَرْضًا مُهِمًّا أَمَامَ اللَّجْنَةِ,3,مُهِمًّا,tanwin_fath,,,,etib_validation
+etib_val_007,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_007.wav,قَدَّمَ الْمُتَرْجِمُ عَرْضًا مُهِمًّا أَمَامَ اللَّجْنَةِ,4,أَمَامَ,fatha,,,,etib_validation
+etib_val_007,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_007.wav,قَدَّمَ الْمُتَرْجِمُ عَرْضًا مُهِمًّا أَمَامَ اللَّجْنَةِ,5,اللَّجْنَةِ,kasra,,,,etib_validation
+etib_val_008,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_008.wav,فَهِمَ الطُّلَّابُ مَعْنَى الْجُمْلَةِ بَعْدَ الشَّرْحِ,0,فَهِمَ,fatha,,,,etib_validation
+etib_val_008,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_008.wav,فَهِمَ الطُّلَّابُ مَعْنَى الْجُمْلَةِ بَعْدَ الشَّرْحِ,1,الطُّلَّابُ,damma,,,,etib_validation
+etib_val_008,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_008.wav,فَهِمَ الطُّلَّابُ مَعْنَى الْجُمْلَةِ بَعْدَ الشَّرْحِ,2,مَعْنَى,ignore,,,,etib_validation
+etib_val_008,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_008.wav,فَهِمَ الطُّلَّابُ مَعْنَى الْجُمْلَةِ بَعْدَ الشَّرْحِ,3,الْجُمْلَةِ,kasra,,,,etib_validation
+etib_val_008,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_008.wav,فَهِمَ الطُّلَّابُ مَعْنَى الْجُمْلَةِ بَعْدَ الشَّرْحِ,4,بَعْدَ,fatha,,,,etib_validation
+etib_val_008,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_008.wav,فَهِمَ الطُّلَّابُ مَعْنَى الْجُمْلَةِ بَعْدَ الشَّرْحِ,5,الشَّرْحِ,kasra,,,,etib_validation
+etib_val_009,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_009.wav,تَحْتَاجُ التَّرْجَمَةُ إِلَى دِقَّةٍ وَتَرْكِيزٍ,0,تَحْتَاجُ,damma,,,,etib_validation
+etib_val_009,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_009.wav,تَحْتَاجُ التَّرْجَمَةُ إِلَى دِقَّةٍ وَتَرْكِيزٍ,1,التَّرْجَمَةُ,damma,,,,etib_validation
+etib_val_009,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_009.wav,تَحْتَاجُ التَّرْجَمَةُ إِلَى دِقَّةٍ وَتَرْكِيزٍ,2,إِلَى,ignore,,,,etib_validation
+etib_val_009,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_009.wav,تَحْتَاجُ التَّرْجَمَةُ إِلَى دِقَّةٍ وَتَرْكِيزٍ,3,دِقَّةٍ,tanwin_kasr,,,,etib_validation
+etib_val_009,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_009.wav,تَحْتَاجُ التَّرْجَمَةُ إِلَى دِقَّةٍ وَتَرْكِيزٍ,4,وَتَرْكِيزٍ,tanwin_kasr,,,,etib_validation
+etib_val_010,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_010.wav,سَأَلَتِ الأُسْتَاذَةُ الطَّالِبَ عَنْ سَبَبِ الْخَطَإِ,0,سَأَلَتِ,kasra,,,,etib_validation
+etib_val_010,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_010.wav,سَأَلَتِ الأُسْتَاذَةُ الطَّالِبَ عَنْ سَبَبِ الْخَطَإِ,1,الأُسْتَاذَةُ,damma,,,,etib_validation
+etib_val_010,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_010.wav,سَأَلَتِ الأُسْتَاذَةُ الطَّالِبَ عَنْ سَبَبِ الْخَطَإِ,2,الطَّالِبَ,fatha,,,,etib_validation
+etib_val_010,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_010.wav,سَأَلَتِ الأُسْتَاذَةُ الطَّالِبَ عَنْ سَبَبِ الْخَطَإِ,3,عَنْ,none,,,,etib_validation
+etib_val_010,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_010.wav,سَأَلَتِ الأُسْتَاذَةُ الطَّالِبَ عَنْ سَبَبِ الْخَطَإِ,4,سَبَبِ,kasra,,,,etib_validation
+etib_val_010,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_010.wav,سَأَلَتِ الأُسْتَاذَةُ الطَّالِبَ عَنْ سَبَبِ الْخَطَإِ,5,الْخَطَإِ,kasra,,,,etib_validation
+etib_val_011,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_011.wav,يُصَحِّحُ النِّظَامُ نِهَايَةَ الْكَلِمَةِ بِحَذَرٍ,0,يُصَحِّحُ,damma,,,,etib_validation
+etib_val_011,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_011.wav,يُصَحِّحُ النِّظَامُ نِهَايَةَ الْكَلِمَةِ بِحَذَرٍ,1,النِّظَامُ,damma,,,,etib_validation
+etib_val_011,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_011.wav,يُصَحِّحُ النِّظَامُ نِهَايَةَ الْكَلِمَةِ بِحَذَرٍ,2,نِهَايَةَ,fatha,,,,etib_validation
+etib_val_011,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_011.wav,يُصَحِّحُ النِّظَامُ نِهَايَةَ الْكَلِمَةِ بِحَذَرٍ,3,الْكَلِمَةِ,kasra,,,,etib_validation
+etib_val_011,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_011.wav,يُصَحِّحُ النِّظَامُ نِهَايَةَ الْكَلِمَةِ بِحَذَرٍ,4,بِحَذَرٍ,tanwin_kasr,,,,etib_validation
+etib_val_012,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_012.wav,وَضَعَ الْمُدَرِّبُ تَمْرِينًا جَدِيدًا فِي الْمِنَصَّةِ,0,وَضَعَ,fatha,,,,etib_validation
+etib_val_012,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_012.wav,وَضَعَ الْمُدَرِّبُ تَمْرِينًا جَدِيدًا فِي الْمِنَصَّةِ,1,الْمُدَرِّبُ,damma,,,,etib_validation
+etib_val_012,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_012.wav,وَضَعَ الْمُدَرِّبُ تَمْرِينًا جَدِيدًا فِي الْمِنَصَّةِ,2,تَمْرِينًا,tanwin_fath,,,,etib_validation
+etib_val_012,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_012.wav,وَضَعَ الْمُدَرِّبُ تَمْرِينًا جَدِيدًا فِي الْمِنَصَّةِ,3,جَدِيدًا,tanwin_fath,,,,etib_validation
+etib_val_012,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_012.wav,وَضَعَ الْمُدَرِّبُ تَمْرِينًا جَدِيدًا فِي الْمِنَصَّةِ,4,فِي,ignore,,,,etib_validation
+etib_val_012,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_012.wav,وَضَعَ الْمُدَرِّبُ تَمْرِينًا جَدِيدًا فِي الْمِنَصَّةِ,5,الْمِنَصَّةِ,kasra,,,,etib_validation
+etib_val_013,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_013.wav,يَقْرَأُ الطَّالِبُ الْجُمْلَةَ ثُمَّ يُعِيدُهَا بِبُطْءٍ,0,يَقْرَأُ,damma,,,,etib_validation
+etib_val_013,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_013.wav,يَقْرَأُ الطَّالِبُ الْجُمْلَةَ ثُمَّ يُعِيدُهَا بِبُطْءٍ,1,الطَّالِبُ,damma,,,,etib_validation
+etib_val_013,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_013.wav,يَقْرَأُ الطَّالِبُ الْجُمْلَةَ ثُمَّ يُعِيدُهَا بِبُطْءٍ,2,الْجُمْلَةَ,fatha,,,,etib_validation
+etib_val_013,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_013.wav,يَقْرَأُ الطَّالِبُ الْجُمْلَةَ ثُمَّ يُعِيدُهَا بِبُطْءٍ,3,ثُمَّ,fatha,,,,etib_validation
+etib_val_013,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_013.wav,يَقْرَأُ الطَّالِبُ الْجُمْلَةَ ثُمَّ يُعِيدُهَا بِبُطْءٍ,4,يُعِيدُهَا,ignore,,,,etib_validation
+etib_val_013,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_013.wav,يَقْرَأُ الطَّالِبُ الْجُمْلَةَ ثُمَّ يُعِيدُهَا بِبُطْءٍ,5,بِبُطْءٍ,tanwin_kasr,,,,etib_validation
+etib_val_014,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_014.wav,تَظْهَرُ النَّتِيجَةُ بَعْدَ التَّحْلِيلِ الصَّوْتِيِّ,0,تَظْهَرُ,damma,,,,etib_validation
+etib_val_014,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_014.wav,تَظْهَرُ النَّتِيجَةُ بَعْدَ التَّحْلِيلِ الصَّوْتِيِّ,1,النَّتِيجَةُ,damma,,,,etib_validation
+etib_val_014,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_014.wav,تَظْهَرُ النَّتِيجَةُ بَعْدَ التَّحْلِيلِ الصَّوْتِيِّ,2,بَعْدَ,fatha,,,,etib_validation
+etib_val_014,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_014.wav,تَظْهَرُ النَّتِيجَةُ بَعْدَ التَّحْلِيلِ الصَّوْتِيِّ,3,التَّحْلِيلِ,kasra,,,,etib_validation
+etib_val_014,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_014.wav,تَظْهَرُ النَّتِيجَةُ بَعْدَ التَّحْلِيلِ الصَّوْتِيِّ,4,الصَّوْتِيِّ,kasra,,,,etib_validation
+etib_val_015,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_015.wav,يُرَكِّزُ التَّمْرِينُ عَلَى الضَّمَّةِ وَالْفَتْحَةِ وَالْكَسْرَةِ,0,يُرَكِّزُ,damma,,,,etib_validation
+etib_val_015,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_015.wav,يُرَكِّزُ التَّمْرِينُ عَلَى الضَّمَّةِ وَالْفَتْحَةِ وَالْكَسْرَةِ,1,التَّمْرِينُ,damma,,,,etib_validation
+etib_val_015,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_015.wav,يُرَكِّزُ التَّمْرِينُ عَلَى الضَّمَّةِ وَالْفَتْحَةِ وَالْكَسْرَةِ,2,عَلَى,ignore,,,,etib_validation
+etib_val_015,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_015.wav,يُرَكِّزُ التَّمْرِينُ عَلَى الضَّمَّةِ وَالْفَتْحَةِ وَالْكَسْرَةِ,3,الضَّمَّةِ,kasra,,,,etib_validation
+etib_val_015,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_015.wav,يُرَكِّزُ التَّمْرِينُ عَلَى الضَّمَّةِ وَالْفَتْحَةِ وَالْكَسْرَةِ,4,وَالْفَتْحَةِ,kasra,,,,etib_validation
+etib_val_015,arabic_sentence_ending_training/data/etib_validation/audio/etib_val_015.wav,يُرَكِّزُ التَّمْرِينُ عَلَى الضَّمَّةِ وَالْفَتْحَةِ وَالْكَسْرَةِ,5,وَالْكَسْرَةِ,kasra,,,,etib_validation

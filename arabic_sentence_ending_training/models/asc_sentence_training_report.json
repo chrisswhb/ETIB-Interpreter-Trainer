@@ -1,0 +1,147 @@
+{
+  "n_samples": 3364,
+  "n_train": 2556,
+  "n_test": 808,
+  "labels": {
+    "damma": 489,
+    "fatha": 485,
+    "kasra": 463,
+    "none": 493,
+    "tanwin_damm": 497,
+    "tanwin_fath": 451,
+    "tanwin_kasr": 486
+  },
+  "split": "GroupShuffleSplit by utterance_id",
+  "accuracy": 0.5012376237623762,
+  "classification_report": {
+    "damma": {
+      "precision": 0.49137931034482757,
+      "recall": 0.5089285714285714,
+      "f1-score": 0.5,
+      "support": 112.0
+    },
+    "fatha": {
+      "precision": 0.509090909090909,
+      "recall": 0.49122807017543857,
+      "f1-score": 0.5,
+      "support": 114.0
+    },
+    "kasra": {
+      "precision": 0.2809917355371901,
+      "recall": 0.3469387755102041,
+      "f1-score": 0.3105022831050228,
+      "support": 98.0
+    },
+    "none": {
+      "precision": 0.3795620437956204,
+      "recall": 0.42276422764227645,
+      "f1-score": 0.4,
+      "support": 123.0
+    },
+    "tanwin_damm": {
+      "precision": 0.8504672897196262,
+      "recall": 0.7109375,
+      "f1-score": 0.774468085106383,
+      "support": 128.0
+    },
+    "tanwin_fath": {
+      "precision": 0.45871559633027525,
+      "recall": 0.4716981132075472,
+      "f1-score": 0.46511627906976744,
+      "support": 106.0
+    },
+    "tanwin_kasr": {
+      "precision": 0.6018518518518519,
+      "recall": 0.5118110236220472,
+      "f1-score": 0.5531914893617021,
+      "support": 127.0
+    },
+    "accuracy": 0.5012376237623762,
+    "macro avg": {
+      "precision": 0.5102941052386143,
+      "recall": 0.4949008973694407,
+      "f1-score": 0.5004683052346965,
+      "support": 808.0
+    },
+    "weighted avg": {
+      "precision": 0.5213032417633624,
+      "recall": 0.5012376237623762,
+      "f1-score": 0.5090579002082187,
+      "support": 808.0
+    }
+  },
+  "confusion_matrix_labels": [
+    "damma",
+    "fatha",
+    "kasra",
+    "none",
+    "tanwin_damm",
+    "tanwin_fath",
+    "tanwin_kasr"
+  ],
+  "confusion_matrix": [
+    [
+      57,
+      11,
+      18,
+      6,
+      5,
+      8,
+      7
+    ],
+    [
+      7,
+      56,
+      19,
+      13,
+      2,
+      12,
+      5
+    ],
+    [
+      12,
+      13,
+      34,
+      18,
+      1,
+      11,
+      9
+    ],
+    [
+      17,
+      12,
+      18,
+      52,
+      2,
+      15,
+      7
+    ],
+    [
+      7,
+      2,
+      5,
+      11,
+      91,
+      3,
+      9
+    ],
+    [
+      9,
+      7,
+      16,
+      17,
+      1,
+      50,
+      6
+    ],
+    [
+      7,
+      9,
+      11,
+      20,
+      5,
+      10,
+      65
+    ]
+  ]
+}

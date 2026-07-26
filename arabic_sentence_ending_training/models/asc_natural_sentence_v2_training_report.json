@@ -1,0 +1,147 @@
+{
+  "n_samples": 3091,
+  "n_train": 2281,
+  "n_test": 810,
+  "labels": {
+    "damma": 485,
+    "fatha": 483,
+    "kasra": 466,
+    "none": 491,
+    "tanwin_damm": 246,
+    "tanwin_fath": 451,
+    "tanwin_kasr": 469
+  },
+  "split": "GroupShuffleSplit by utterance_id",
+  "accuracy": 0.47530864197530864,
+  "classification_report": {
+    "damma": {
+      "precision": 0.5,
+      "recall": 0.5,
+      "f1-score": 0.5,
+      "support": 116.0
+    },
+    "fatha": {
+      "precision": 0.44166666666666665,
+      "recall": 0.4140625,
+      "f1-score": 0.4274193548387097,
+      "support": 128.0
+    },
+    "kasra": {
+      "precision": 0.3609022556390977,
+      "recall": 0.41739130434782606,
+      "f1-score": 0.3870967741935484,
+      "support": 115.0
+    },
+    "none": {
+      "precision": 0.5118110236220472,
+      "recall": 0.4744525547445255,
+      "f1-score": 0.49242424242424243,
+      "support": 137.0
+    },
+    "tanwin_damm": {
+      "precision": 0.5283018867924528,
+      "recall": 0.6086956521739131,
+      "f1-score": 0.5656565656565656,
+      "support": 46.0
+    },
+    "tanwin_fath": {
+      "precision": 0.5725806451612904,
+      "recall": 0.5107913669064749,
+      "f1-score": 0.5399239543726235,
+      "support": 139.0
+    },
+    "tanwin_kasr": {
+      "precision": 0.45255474452554745,
+      "recall": 0.4806201550387597,
+      "f1-score": 0.46616541353383456,
+      "support": 129.0
+    },
+    "accuracy": 0.47530864197530864,
+    "macro avg": {
+      "precision": 0.4811167460581575,
+      "recall": 0.486573361887357,
+      "f1-score": 0.48266947214564626,
+      "support": 810.0
+    },
+    "weighted avg": {
+      "precision": 0.4795374833107628,
+      "recall": 0.47530864197530864,
+      "f1-score": 0.4764109847995006,
+      "support": 810.0
+    }
+  },
+  "confusion_matrix_labels": [
+    "damma",
+    "fatha",
+    "kasra",
+    "none",
+    "tanwin_damm",
+    "tanwin_fath",
+    "tanwin_kasr"
+  ],
+  "confusion_matrix": [
+    [
+      58,
+      10,
+      15,
+      5,
+      4,
+      9,
+      15
+    ],
+    [
+      12,
+      53,
+      16,
+      15,
+      5,
+      11,
+      16
+    ],
+    [
+      11,
+      10,
+      48,
+      16,
+      3,
+      11,
+      16
+    ],
+    [
+      12,
+      19,
+      16,
+      65,
+      5,
+      11,
+      9
+    ],
+    [
+      5,
+      2,
+      4,
+      1,
+      28,
+      2,
+      4
+    ],
+    [
+      12,
+      10,
+      17,
+      8,
+      6,
+      71,
+      15
+    ],
+    [
+      6,
+      16,
+      17,
+      17,
+      2,
+      9,
+      62
+    ]
+  ]
+}

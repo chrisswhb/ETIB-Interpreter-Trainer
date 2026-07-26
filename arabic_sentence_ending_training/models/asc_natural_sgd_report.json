@@ -1,0 +1,148 @@
+{
+  "n_samples": 3098,
+  "n_train": 2353,
+  "n_test": 745,
+  "labels": {
+    "damma": 489,
+    "fatha": 489,
+    "kasra": 467,
+    "none": 485,
+    "tanwin_damm": 248,
+    "tanwin_fath": 449,
+    "tanwin_kasr": 471
+  },
+  "split": "GroupShuffleSplit by utterance_id",
+  "classifier": "sgd_log",
+  "accuracy": 0.49530201342281877,
+  "classification_report": {
+    "damma": {
+      "precision": 0.5702479338842975,
+      "recall": 0.552,
+      "f1-score": 0.5609756097560976,
+      "support": 125.0
+    },
+    "fatha": {
+      "precision": 0.40384615384615385,
+      "recall": 0.4117647058823529,
+      "f1-score": 0.4077669902912621,
+      "support": 102.0
+    },
+    "kasra": {
+      "precision": 0.44036697247706424,
+      "recall": 0.4247787610619469,
+      "f1-score": 0.43243243243243246,
+      "support": 113.0
+    },
+    "none": {
+      "precision": 0.43448275862068964,
+      "recall": 0.4883720930232558,
+      "f1-score": 0.45985401459854014,
+      "support": 129.0
+    },
+    "tanwin_damm": {
+      "precision": 0.4576271186440678,
+      "recall": 0.574468085106383,
+      "f1-score": 0.5094339622641509,
+      "support": 47.0
+    },
+    "tanwin_fath": {
+      "precision": 0.6494845360824743,
+      "recall": 0.5163934426229508,
+      "f1-score": 0.5753424657534246,
+      "support": 122.0
+    },
+    "tanwin_kasr": {
+      "precision": 0.5181818181818182,
+      "recall": 0.5327102803738317,
+      "f1-score": 0.5253456221198156,
+      "support": 107.0
+    },
+    "accuracy": 0.49530201342281877,
+    "macro avg": {
+      "precision": 0.4963196131052236,
+      "recall": 0.500069624010103,
+      "f1-score": 0.4958787281736748,
+      "support": 745.0
+    },
+    "weighted avg": {
+      "precision": 0.5026497794679325,
+      "recall": 0.49530201342281877,
+      "f1-score": 0.4969763430771149,
+      "support": 745.0
+    }
+  },
+  "confusion_matrix_labels": [
+    "damma",
+    "fatha",
+    "kasra",
+    "none",
+    "tanwin_damm",
+    "tanwin_fath",
+    "tanwin_kasr"
+  ],
+  "confusion_matrix": [
+    [
+      69,
+      10,
+      13,
+      12,
+      11,
+      4,
+      6
+    ],
+    [
+      11,
+      42,
+      11,
+      21,
+      2,
+      8,
+      7
+    ],
+    [
+      8,
+      9,
+      48,
+      23,
+      5,
+      6,
+      14
+    ],
+    [
+      10,
+      21,
+      11,
+      63,
+      8,
+      2,
+      14
+    ],
+    [
+      6,
+      1,
+      4,
+      3,
+      27,
+      3,
+      3
+    ],
+    [
+      12,
+      13,
+      11,
+      12,
+      2,
+      63,
+      9
+    ],
+    [
+      5,
+      8,
+      11,
+      11,
+      4,
+      11,
+      57
+    ]
+  ]
+}

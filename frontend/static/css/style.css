@@ -211,6 +211,66 @@ main {
   padding: 0 4px;
 }
 
+#reference-display .current-focus-word {
+  background: rgba(26, 122, 58, 0.18);
+  border-bottom-color: var(--correct);
+  outline: 2px solid rgba(26, 122, 58, 0.25);
+}
+
+.word-practice-box {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  margin: 0.9rem 0;
+}
+
+.word-practice-box label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+
+#current-practice-word {
+  color: var(--primary);
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.practice-progress {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: 0.2rem;
+}
+
+.practice-summary {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  margin: 0.8rem 0;
+}
+
+.practice-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.practice-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.practice-chip.correct { background: #d4edda; color: var(--correct); }
+.practice-chip.incorrect { background: #f8d7da; color: var(--incorrect); }
+.practice-chip.pending { background: #fff; color: var(--muted); }
+
 /* ── Tip box ──────────────────────────────────────────────────────────────── */
 .tip-box {
   background: #fff8e1;

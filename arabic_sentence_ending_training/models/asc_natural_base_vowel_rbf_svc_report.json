@@ -1,0 +1,86 @@
+{
+  "n_samples": 3091,
+  "n_train": 2281,
+  "n_test": 810,
+  "labels": {
+    "damma": 731,
+    "fatha": 934,
+    "kasra": 935,
+    "none": 491
+  },
+  "split": "GroupShuffleSplit by utterance_id",
+  "classifier": "rbf_svc",
+  "label_mode": "base_vowel",
+  "accuracy": 0.6333333333333333,
+  "classification_report": {
+    "damma": {
+      "precision": 0.6909090909090909,
+      "recall": 0.7037037037037037,
+      "f1-score": 0.6972477064220184,
+      "support": 162.0
+    },
+    "fatha": {
+      "precision": 0.6741071428571429,
+      "recall": 0.5655430711610487,
+      "f1-score": 0.615071283095723,
+      "support": 267.0
+    },
+    "kasra": {
+      "precision": 0.567398119122257,
+      "recall": 0.7418032786885246,
+      "f1-score": 0.6429840142095915,
+      "support": 244.0
+    },
+    "none": {
+      "precision": 0.6568627450980392,
+      "recall": 0.48905109489051096,
+      "f1-score": 0.5606694560669456,
+      "support": 137.0
+    },
+    "accuracy": 0.6333333333333333,
+    "macro avg": {
+      "precision": 0.6473192744966325,
+      "recall": 0.625025287110947,
+      "f1-score": 0.6289931149485697,
+      "support": 810.0
+    },
+    "weighted avg": {
+      "precision": 0.6424064407585087,
+      "recall": 0.6333333333333333,
+      "f1-score": 0.6307135505867122,
+      "support": 810.0
+    }
+  },
+  "confusion_matrix_labels": [
+    "damma",
+    "fatha",
+    "kasra",
+    "none"
+  ],
+  "confusion_matrix": [
+    [
+      114,
+      14,
+      32,
+      2
+    ],
+    [
+      26,
+      151,
+      74,
+      16
+    ],
+    [
+      14,
+      32,
+      181,
+      17
+    ],
+    [
+      11,
+      27,
+      32,
+      67
+    ]
+  ]
+}

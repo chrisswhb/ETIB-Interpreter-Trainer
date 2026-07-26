@@ -1,0 +1,86 @@
+{
+  "n_samples": 4642,
+  "n_train": 3501,
+  "n_test": 1141,
+  "labels": {
+    "damma": 1377,
+    "fatha": 1165,
+    "kasra": 1400,
+    "none": 700
+  },
+  "split": "GroupShuffleSplit by utterance_id",
+  "classifier": "rbf_svc",
+  "label_mode": "base_vowel",
+  "accuracy": 0.978965819456617,
+  "classification_report": {
+    "damma": {
+      "precision": 0.9917355371900827,
+      "recall": 0.9917355371900827,
+      "f1-score": 0.9917355371900827,
+      "support": 363.0
+    },
+    "fatha": {
+      "precision": 0.9710144927536232,
+      "recall": 0.9816849816849816,
+      "f1-score": 0.97632058287796,
+      "support": 273.0
+    },
+    "kasra": {
+      "precision": 0.987460815047022,
+      "recall": 0.9813084112149533,
+      "f1-score": 0.984375,
+      "support": 321.0
+    },
+    "none": {
+      "precision": 0.9508196721311475,
+      "recall": 0.9456521739130435,
+      "f1-score": 0.9482288828337875,
+      "support": 184.0
+    },
+    "accuracy": 0.978965819456617,
+    "macro avg": {
+      "precision": 0.9752576292804689,
+      "recall": 0.9750952760007653,
+      "f1-score": 0.9751650007254575,
+      "support": 1141.0
+    },
+    "weighted avg": {
+      "precision": 0.9789769481366909,
+      "recall": 0.978965819456617,
+      "f1-score": 0.9789605684198949,
+      "support": 1141.0
+    }
+  },
+  "confusion_matrix_labels": [
+    "damma",
+    "fatha",
+    "kasra",
+    "none"
+  ],
+  "confusion_matrix": [
+    [
+      360,
+      1,
+      0,
+      2
+    ],
+    [
+      1,
+      268,
+      1,
+      3
+    ],
+    [
+      0,
+      2,
+      315,
+      4
+    ],
+    [
+      2,
+      5,
+      3,
+      174
+    ]
+  ]
+}
