@@ -559,6 +559,13 @@ function renderResults(data) {
     const notesHtml = (f.pronunciation_notes || []).length
       ? `<ul class="pronunciation-notes">${f.pronunciation_notes.map(n => `<li>${n}</li>`).join("")}</ul>`
       : "";
+    const textSignalsHtml = (f.asr_word || f.diacritized_transcript_word)
+      ? `<div class="finding-explanation">
+          ASR word: <strong>${f.asr_word || "—"}</strong>
+          · match: <strong>${Math.round((f.asr_match_score || 0) * 100)}%</strong>
+          · text ending: <strong>${f.text_detected_ending || "—"}</strong>
+        </div>`
+      : "";
     const endingLabels = {
       fatha: "فتحة (a)", damma: "ضمة (u)", kasra: "كسرة (i)",
       tanwin_fath: "تنوين فتح (an)", tanwin_damm: "تنوين ضم (un)", tanwin_kasr: "تنوين كسر (in)",
@@ -581,6 +588,7 @@ function renderResults(data) {
         </div>
       </div>
       ${f.explanation ? `<div class="finding-explanation">${f.explanation}</div>` : ""}
+      ${textSignalsHtml}
       ${notesHtml}
     `;
     findingsDiv.appendChild(card);

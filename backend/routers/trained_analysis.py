@@ -9,6 +9,7 @@ from routers.speech_diacritize import _transcribe_arabic_with_groq
 from services.cohere_transcriber import transcribe_arabic_with_cohere
 from services.gemma_alignment import refine_alignment_with_gemma
 from services.tanween_corrector import correct_tanween_with_llm
+from services.text_signal_fusion import fuse_text_signals
 from services.trained_ending_detector import TrainedEndingDetector
 from utils.audio_utils import audio_array_to_wav_bytes, normalize_for_asr, trim_silence, webm_to_wav
 
@@ -61,6 +62,7 @@ async def analyze_trained_audio(
             wav_bytes,
         )
         response["speech_transcript"] = speech_transcript
+        response = fuse_text_signals(response, speech_transcript)
     except Exception as exc:
         logger.exception("trained ending analysis failed")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
