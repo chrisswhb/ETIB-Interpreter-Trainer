@@ -44,7 +44,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import analysis, diacritize, exercises, expert_pipeline, speech_diacritize, trained_analysis, translation_eval
+from routers import analysis, arabic_wrapper, diacritize, exercises, expert_pipeline, speech_diacritize, trained_analysis, translation_eval
 from services.model_loader import ModelLoader
 from services.trained_ending_detector import TrainedEndingDetector
 
@@ -115,6 +115,7 @@ app.add_middleware(
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(analysis.router,          prefix="/api")   # Layer 2 audio analysis
 app.include_router(trained_analysis.router,  prefix="/api")   # Trained ending classifier demo
+app.include_router(arabic_wrapper.router,    prefix="/api")   # External Flask/API wrapper
 app.include_router(diacritize.router,        prefix="/api")   # Arabic reference diacritization
 app.include_router(speech_diacritize.router, prefix="/api")   # Speech transcription + tashkeel hypothesis
 app.include_router(expert_pipeline.router,   prefix="/api")   # Cohere ASR + Gemma-style tanween correction
