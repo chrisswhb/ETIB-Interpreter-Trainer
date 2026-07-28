@@ -1,0 +1,14 @@
+.git
+.env
+__pycache__/
+*.pyc
+*.log
+.tools/
+venv/
+backend/venv/
+data/recordings/
+data/word_recordings/
+**/.ipynb_checkpoints/
+*.zip
+*.docx
+*.html

@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 ROOT = Path(__file__).resolve().parents[2]
-MODEL_DIR = Path.home() / "Desktop" / "etib_models" / "wav2vec2_jonatasgrosman_arabic"
+LOCAL_MODEL_DIR = Path(os.environ.get("ETIB_WAV2VEC2_MODEL_DIR", Path.home() / "Desktop" / "etib_models" / "wav2vec2_jonatasgrosman_arabic")).expanduser()
+REMOTE_MODEL_ID = os.environ.get("ETIB_WAV2VEC2_MODEL_ID", "jonatasgrosman/wav2vec2-large-xlsr-53-arabic")
 CLASSIFIER_PATH = (
     ROOT
     / "arabic_sentence_ending_training"
@@ -71,8 +72,7 @@ class TrainedEndingDetector:
     def load(cls) -> None:
         if cls._processor is not None and cls._wav2vec2 is not None and cls._classifier is not None:
             return
-        if not MODEL_DIR.exists():
-            raise RuntimeError(f"wav2vec2 model folder not found: {MODEL_DIR}")
+        model_source, local_only = _wav2vec2_source()
         classifier_path = _active_classifier_path()
         if not classifier_path.exists():
             raise RuntimeError(f"trained classifier not found: {classifier_path}")
@@ -80,10 +80,10 @@ class TrainedEndingDetector:
         from transformers import Wav2Vec2Model, Wav2Vec2Processor
 
         cls._processor = Wav2Vec2Processor.from_pretrained(
-            str(MODEL_DIR), local_files_only=True
+            model_source, local_files_only=local_only
         )
         cls._wav2vec2 = Wav2Vec2Model.from_pretrained(
-            str(MODEL_DIR), local_files_only=True
+            model_source, local_files_only=local_only
         )
         cls._wav2vec2.eval()
         cls._classifier = joblib.load(classifier_path)
@@ -197,21 +197,20 @@ class TrainedEndingDetector:
     def _load_ctc_aligner(cls) -> None:
         if cls._ctc_processor is not None and cls._ctc_model is not None:
             return
-        if not MODEL_DIR.exists():
-            return
+        model_source, local_only = _wav2vec2_source()
         try:
             from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 
             cls._ctc_processor = Wav2Vec2Processor.from_pretrained(
-                str(MODEL_DIR),
-                local_files_only=True,
+                model_source,
+                local_files_only=local_only,
             )
             cls._ctc_model = Wav2Vec2ForCTC.from_pretrained(
-                str(MODEL_DIR),
-                local_files_only=True,
+                model_source,
+                local_files_only=local_only,
             )
             cls._ctc_model.eval()
-            logger.info("Loaded local wav2vec2 CTC aligner: %s", MODEL_DIR)
+            logger.info("Loaded wav2vec2 CTC aligner: %s", model_source)
         except Exception as exc:
             logger.warning("Could not load wav2vec2 CTC aligner: %s", exc)
             cls._ctc_processor = None
@@ -661,6 +660,12 @@ def _is_gradable_reference_word(word: str) -> bool:
     # Accusative tanween is commonly written before final silent alif.
     return bool(cleaned[-1:] in {"ا", "ى"} and "\u064b" in cleaned[-5:])
 
+
+def _wav2vec2_source() -> tuple[str, bool]:
+    """Return local model folder when present, otherwise a Hugging Face model id."""
+    if LOCAL_MODEL_DIR.exists():
+        return str(LOCAL_MODEL_DIR), True
+    return REMOTE_MODEL_ID, False
 
 def _active_classifier_path() -> Path:
     if os.environ.get("USE_AUGMENTED_ACOUSTIC_CLASSIFIER") == "1" and AUGMENTED_CLASSIFIER_PATH.exists():
