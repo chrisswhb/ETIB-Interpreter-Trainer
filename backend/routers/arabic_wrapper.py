@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 import os
 from typing import Optional
 
@@ -116,10 +116,24 @@ async def evaluate_arabic_from_external_app(
 
     try:
         transcript = await _transcribe_free_speech(wav_bytes, reference)
-        analysis_response: dict = {}
-        findings: list[dict] = []
+    except Exception as exc:
+        logger.exception("wrapper transcription failed")
+        transcript = {
+            "provider": "none",
+            "model": None,
+            "fallback_used": False,
+            "transcript": "",
+            "diacritized_transcript": "",
+            "tanween_notes": [],
+            "error": str(exc),
+        }
 
-        if mode_used == "full":
+    analysis_response: dict = {}
+    findings: list[dict] = []
+    pronunciation_error: Optional[str] = None
+
+    if mode_used == "full":
+        try:
             word_spans = _parse_word_spans(word_spans_json)
             if not word_spans:
                 word_spans = await TrainedEndingDetector.transcribe_word_timestamps(wav_bytes)
@@ -142,11 +156,9 @@ async def evaluate_arabic_from_external_app(
             analysis_response["speech_transcript"] = transcript
             analysis_response = fuse_text_signals(analysis_response, transcript)
             findings = analysis_response.get("iraab_findings", [])
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.exception("arabic wrapper evaluation failed")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        except Exception as exc:
+            logger.exception("wrapper pronunciation path failed")
+            pronunciation_error = str(exc)
 
     content = {
         "ok": True,
@@ -168,9 +180,10 @@ async def evaluate_arabic_from_external_app(
             "error": transcript.get("error"),
         },
         "pronunciation": {
-            "available": mode_used == "full",
+            "available": mode_used == "full" and pronunciation_error is None,
             "summary": _summarize_findings(findings),
             "findings": findings,
+            "error": pronunciation_error,
         },
         "delivery": analysis_response.get("delivery", {}),
         "model_provenance": analysis_response.get("model_provenance", {}),
