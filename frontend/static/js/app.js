@@ -1,9 +1,10 @@
-﻿let mediaRecorder = null;
+let mediaRecorder = null;
 let audioChunks = [];
 let recordedBlob = null;
 let timerInterval = null;
 let secondsElapsed = 0;
 
+const EMPTY = "-";
 const recordBtn = document.getElementById("record-btn");
 const recordLabel = document.getElementById("record-label");
 const timerEl = document.getElementById("timer");
@@ -24,11 +25,11 @@ async function checkService() {
     const data = await resp.json();
     serviceDot.className = "service-dot ok";
     serviceStatus.textContent = data.configured?.cohere
-      ? "الخدمة جاهزة - Cohere مفعّل"
-      : "الخدمة تعمل، لكن مفتاح Cohere غير مفعّل";
+      ? "Service ready - Cohere enabled"
+      : "Service online, but Cohere key is missing";
   } catch (err) {
     serviceDot.className = "service-dot bad";
-    serviceStatus.textContent = "الخدمة غير متاحة الآن";
+    serviceStatus.textContent = "Service unavailable";
   }
 }
 
@@ -37,7 +38,7 @@ async function toggleRecording() {
     mediaRecorder.stop();
     clearInterval(timerInterval);
     recordBtn.classList.remove("active");
-    recordLabel.textContent = "إعادة التسجيل";
+    recordLabel.textContent = "Record again";
     timerEl.style.display = "none";
     return;
   }
@@ -71,13 +72,13 @@ async function toggleRecording() {
 
     mediaRecorder.start(100);
     recordBtn.classList.add("active");
-    recordLabel.textContent = "إيقاف التسجيل";
+    recordLabel.textContent = "Stop recording";
     secondsElapsed = 0;
     timerEl.style.display = "block";
     timerEl.textContent = "00:00";
     timerInterval = setInterval(updateTimer, 1000);
   } catch (err) {
-    alert("لا يمكن الوصول إلى الميكروفون: " + err.message);
+    alert("Microphone access failed: " + err.message);
   }
 }
 
@@ -97,10 +98,9 @@ async function analyzeRecording() {
 
   const formData = new FormData();
   formData.append("audio", recordedBlob, "arabic-recording.webm");
-  formData.append("mode", "light");
 
   try {
-    const resp = await fetch("/api/arabic-wrapper/evaluate", {
+    const resp = await fetch("/api/arabic-wrapper/transcribe-harakat", {
       method: "POST",
       body: formData,
     });
@@ -117,7 +117,7 @@ async function analyzeRecording() {
     const data = await resp.json();
     renderResult(data);
   } catch (err) {
-    alert("حدث خطأ أثناء التحليل: " + err.message);
+    alert("Analysis failed: " + err.message);
   } finally {
     spinner.style.display = "none";
     analyzeBtn.style.display = "inline-block";
@@ -126,15 +126,16 @@ async function analyzeRecording() {
 
 function renderResult(data) {
   const transcript = data.transcript || {};
-  setArabicText("raw-transcript", transcript.raw || "—");
-  setArabicText("diacritized-transcript", transcript.diacritized || transcript.raw || "—");
+  setArabicText("raw-transcript", transcript.raw || EMPTY);
+  setArabicText("diacritized-transcript", transcript.spoken_harakat || transcript.diacritized || transcript.raw || EMPTY);
 
-  document.getElementById("provider-value").textContent = transcript.provider || "—";
-  document.getElementById("model-value").textContent = transcript.model || "—";
+  document.getElementById("provider-value").textContent = transcript.provider || EMPTY;
+  document.getElementById("model-value").textContent = transcript.model || EMPTY;
 
   const notesBlock = document.getElementById("notes-block");
   const notesList = document.getElementById("tanween-notes");
-  const notes = transcript.tanween_notes || [];
+  const spoken = data.spoken_endings || {};
+  const notes = buildEndingNotes(spoken.findings || [], transcript.tanween_notes || [], spoken.error);
   notesList.innerHTML = "";
   if (notes.length) {
     notes.forEach(note => {
@@ -151,8 +152,33 @@ function renderResult(data) {
   resultsPanel.style.display = "block";
 }
 
+function buildEndingNotes(findings, tanweenNotes, acousticError) {
+  const notes = [];
+  if (acousticError) notes.push("Acoustic ending detector failed: " + acousticError);
+  findings.slice(0, 40).forEach(item => {
+    const word = item.word || EMPTY;
+    const ending = labelEnding(item.detected_ending || "none");
+    const confidence = Math.round((Number(item.detection_confidence) || 0) * 100);
+    notes.push(`${word}: ${ending} (${confidence}%)`);
+  });
+  if (!notes.length && tanweenNotes.length) return tanweenNotes;
+  return notes;
+}
+
+function labelEnding(label) {
+  return {
+    fatha: "fatha",
+    damma: "damma",
+    kasra: "kasra",
+    tanwin_fath: "tanween fatha",
+    tanwin_damm: "tanween damma",
+    tanwin_kasr: "tanween kasra",
+    none: "no final mark detected"
+  }[label] || label;
+}
+
 function setArabicText(id, value) {
   const el = document.getElementById(id);
   el.textContent = value;
-  el.classList.toggle("empty", value === "—");
+  el.classList.toggle("empty", value === EMPTY);
 }

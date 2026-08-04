@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
@@ -9,8 +9,8 @@
 <body>
   <header>
     <div class="header-inner">
-      <h1>ETIB - الناسخ العربي بالحركات</h1>
-      <p class="subtitle">سجّل صوتك بالعربية، وسيعرض النظام النص مع فرضية التشكيل والتنوين.</p>
+      <h1>ETIB - Arabic Spoken Harakat Transcriber</h1>
+      <p class="subtitle">Record Arabic speech. The system transcribes the words, then adds final harakat detected from the audio.</p>
     </div>
   </header>
 
@@ -18,56 +18,56 @@
     <section class="card transcriber-card">
       <div class="service-row">
         <span id="service-dot" class="service-dot"></span>
-        <span id="service-status">جارٍ فحص الخدمة...</span>
+        <span id="service-status">Checking service...</span>
       </div>
 
       <div class="mic-panel">
         <button id="record-btn" class="btn-record" type="button">
-          <span id="record-label">ابدأ التسجيل</span>
+          <span id="record-label">Start recording</span>
         </button>
         <div id="timer" class="timer" style="display:none">00:00</div>
         <audio id="playback" controls style="display:none"></audio>
       </div>
 
-      <button id="analyze-btn" class="btn-primary" type="button" style="display:none">تحويل الصوت إلى نص مشكّل</button>
+      <button id="analyze-btn" class="btn-primary" type="button" style="display:none">Analyze spoken harakat</button>
 
       <div id="analyzing-spinner" class="spinner-wrap" style="display:none">
         <div class="spinner"></div>
-        <p>جارٍ تحليل الصوت...</p>
+        <p>Analyzing audio...</p>
       </div>
     </section>
 
     <section id="results-panel" class="card results-card" style="display:none">
-      <h2>النتيجة</h2>
+      <h2>Result</h2>
 
       <div class="result-block">
-        <label>النص كما سمعه النظام</label>
-        <div id="raw-transcript" class="arabic-output empty">—</div>
+        <label>ASR transcript</label>
+        <div id="raw-transcript" class="arabic-output empty">-</div>
       </div>
 
       <div class="result-block primary-result">
-        <label>النص بالحركات والتنوين</label>
-        <div id="diacritized-transcript" class="arabic-output empty">—</div>
+        <label>Transcript with acoustically detected final harakat</label>
+        <div id="diacritized-transcript" class="arabic-output empty">-</div>
       </div>
 
       <div id="notes-block" class="result-block" style="display:none">
-        <label>ملاحظات التنوين</label>
+        <label>Detected ending per word</label>
         <ul id="tanween-notes" class="notes-list"></ul>
       </div>
 
       <div class="meta-grid">
         <div>
-          <span>المزوّد</span>
-          <strong id="provider-value">—</strong>
+          <span>Provider</span>
+          <strong id="provider-value">-</strong>
         </div>
         <div>
-          <span>النموذج</span>
-          <strong id="model-value">—</strong>
+          <span>Model</span>
+          <strong id="model-value">-</strong>
         </div>
       </div>
 
       <details class="debug-details">
-        <summary>بيانات تقنية</summary>
+        <summary>Technical JSON</summary>
         <pre id="debug-json"></pre>
       </details>
     </section>
@@ -77,6 +77,6 @@
     <p>ETIB Interpreter Training Platform - Arabic Module - 2026</p>
   </footer>
 
-  <script src="/static/js/app.js?v=general-harakat-transcriber-1"></script>
+  <script src="/static/js/app.js?v=spoken-harakat-transcriber-3"></script>
 </body>
 </html>
