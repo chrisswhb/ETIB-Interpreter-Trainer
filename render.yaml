@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: etib-arabic-wrapper-api
+    env: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/arabic-wrapper/health
+    envVars:
+      - key: COHERE_ARABIC_ASR_MODEL
+        value: cohere-transcribe-arabic-07-2026
+      - key: PRELOAD_TRAINED_DETECTOR
+        value: "0"
+      - key: PRELOAD_FULL_MODELS
+        value: "0"
+      - key: USE_AUGMENTED_ACOUSTIC_CLASSIFIER
+        value: "0"
+      - key: COHERE_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
