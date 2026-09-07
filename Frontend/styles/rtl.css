@@ -17,14 +17,6 @@ body.rtl {
 
 body.rtl .form-grid { direction: rtl; }
 body.rtl select, body.rtl input, body.rtl textarea { text-align: right; direction: rtl; }
-body.rtl .password-control input {
-  padding-right: 0.75rem;
-  padding-left: 4.75rem;
-}
-body.rtl .password-toggle {
-  right: auto;
-  left: 0.35rem;
-}
 body.rtl .coming-soon { direction: rtl; }
 body.rtl .login-layout { direction: rtl; }
 body.rtl .secondary-action { direction: rtl; }

@@ -327,6 +327,10 @@ const UI = {
     deleteAudio: 'Delete audio',
     redoTranscript: 'Redo transcription',
     copyText: 'Copy',
+    bubbleGood: 'Good transcription',
+    bubblePoor: 'Poor transcription',
+    deleteTranscript: 'Delete transcript',
+    closeLabel: 'Close',
     copied: 'Copied!',
     topicPlaceholder: 'Enter a topic or paste text to generate a speech…',
     namePlaceholder: 'Your full name',
@@ -814,6 +818,10 @@ const UI = {
     deleteAudio: 'حذف التسجيل',
     redoTranscript: 'إعادة التفريغ',
     copyText: 'نسخ',
+    bubbleGood: 'تفريغ جيد',
+    bubblePoor: 'تفريغ رديء',
+    deleteTranscript: 'حذف النص المفرَّغ',
+    closeLabel: 'إغلاق',
     copied: 'تم النسخ!',
     topicPlaceholder: 'أدخل موضوعاً أو الصق نصاً لتوليد خطاب...',
     namePlaceholder: 'اسمك الكامل',
@@ -1301,6 +1309,10 @@ const UI = {
     deleteAudio: 'Supprimer l\'audio',
     redoTranscript: 'Refaire la transcription',
     copyText: 'Copier',
+    bubbleGood: 'Bonne transcription',
+    bubblePoor: 'Mauvaise transcription',
+    deleteTranscript: 'Supprimer la transcription',
+    closeLabel: 'Fermer',
     copied: 'Copié !',
     topicPlaceholder: 'Saisissez un sujet ou collez un texte pour générer un discours…',
     namePlaceholder: 'Votre nom complet',
@@ -1803,7 +1815,7 @@ const IconTrash = () => (
   </svg>
 );
 
-function TranscriptBubble({ text, vocalizedText, isArabic, onRetranscribe, onDelete }) {
+function TranscriptBubble({ labels, text, vocalizedText, isArabic, onRetranscribe, onDelete }) {
   const [copied, setCopied]       = useState(false);
   const [feedback, setFeedback]   = useState(null);
   const [showVocalized, setShowVocalized] = useState(true);
@@ -1839,24 +1851,24 @@ function TranscriptBubble({ text, vocalizedText, isArabic, onRetranscribe, onDel
       <div className={`bubble-text ${isArabic ? 'arabic' : ''}`}>{displayText}</div>
 
       <div className="bubble-actions">
-        <button className={`bubble-btn ${copied ? 'bubble-btn-active' : ''}`} onClick={copy} title="Copy">
+        <button className={`bubble-btn ${copied ? 'bubble-btn-active' : ''}`} onClick={copy} title={labels.copyText}>
           <IconCopy />
         </button>
         <button className={`bubble-btn ${feedback === 'up' ? 'bubble-btn-active' : ''}`}
-          onClick={() => setFeedback(f => f === 'up' ? null : 'up')} title="Good transcription">
+          onClick={() => setFeedback(f => f === 'up' ? null : 'up')} title={labels.bubbleGood}>
           <IconThumbUp />
         </button>
         <button className={`bubble-btn ${feedback === 'down' ? 'bubble-btn-active' : ''}`}
-          onClick={() => setFeedback(f => f === 'down' ? null : 'down')} title="Poor transcription">
+          onClick={() => setFeedback(f => f === 'down' ? null : 'down')} title={labels.bubblePoor}>
           <IconThumbDown />
         </button>
         {onRetranscribe && (
-          <button className="bubble-btn" onClick={onRetranscribe} title="Re-transcribe">
+          <button className="bubble-btn" onClick={onRetranscribe} title={labels.redoTranscript}>
             <IconRefresh />
           </button>
         )}
         {onDelete && (
-          <button className="bubble-btn bubble-btn-danger" onClick={onDelete} title="Delete transcript">
+          <button className="bubble-btn bubble-btn-danger" onClick={onDelete} title={labels.deleteTranscript}>
             <IconTrash />
           </button>
         )}
@@ -2171,7 +2183,7 @@ function ModuleProgress({ labels, refresh, onApplyParams }) {
                     <span className="session-lang">{LANG_FLAG[s.language] || (s.language || '').toUpperCase()}</span>
                     <span className="session-date">{new Date(s.created_at).toLocaleString(dateLocale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                     <div className="session-scores">
-                      <span title="Overall"><ScoreBadge score={s.overall_score} /></span>
+                      <span title={labels.overallScore}><ScoreBadge score={s.overall_score} /></span>
                       <MiniBar value={s.overall_score} color={s.overall_score >= 7 ? 'var(--sage)' : s.overall_score >= 5.5 ? 'var(--primary)' : 'var(--sienna)'} />
                     </div>
                     <div className="session-error-chips">
@@ -2241,6 +2253,8 @@ export default function App() {
   const [activePanel, setActivePanel] = useState('module-a');
   const [lastGeneratedScript, setLastGeneratedScript] = useState(null);
   const [sessionRestored, setSessionRestored] = useState(false);
+  // Bumped on signup so the AI disclaimer modal opens for every new account.
+  const [disclaimerTrigger, setDisclaimerTrigger] = useState(0);
   const L = UI[uiLang];
 
   // ── Session resume — ACCOUNTS ONLY (tester request, 5 Aug 2026) ───────────
@@ -2355,6 +2369,9 @@ export default function App() {
       setCurrentUserId(result.user.id);
       setCurrentUser(result.user);
       setIsAuthenticated(true);
+      // A new account must see the AI disclaimer in full, even on a browser
+      // that already acknowledged it as a guest.
+      setDisclaimerTrigger(n => n + 1);
     } catch (err) {
       throw err;
     }
@@ -2414,6 +2431,7 @@ export default function App() {
             lastGeneratedScript={lastGeneratedScript}
             currentUser={currentUser}
             isRtl={uiLang === 'ar'}
+            disclaimerTrigger={disclaimerTrigger}
           />
         )}
       </main>
@@ -2686,14 +2704,23 @@ const AI_DISCLAIMER_ACK_KEY = 'etib_ai_disclaimer_ack_v1';
 // Kept to ONE slim line in the workspace — the full text lives in a modal that
 // opens itself once, on first use, and closes for good on "I understand".
 // A permanent wall of text at the top of the page is not a usable disclaimer.
-function AiDisclaimer({ labels }) {
+function AiDisclaimer({ labels, forceOpen = 0 }) {
   const [acked, setAcked] = useState(() => {
     try { return localStorage.getItem(AI_DISCLAIMER_ACK_KEY) === '1'; } catch { return false; }
   });
   const [open, setOpen] = useState(false);
+  // Hiding the line is deliberately SESSION-ONLY (not persisted): the ETIB asked
+  // for a warning that is present, so it comes back on the next visit.
+  const [hidden, setHidden] = useState(false);
 
   // First visit: show the full text once, then never again unless asked for.
   useEffect(() => { if (!acked) setOpen(true); }, [acked]);
+
+  // A brand-new account must read the disclaimer even if this browser already
+  // acknowledged it as a guest — the counter re-fires on every signup.
+  useEffect(() => {
+    if (forceOpen > 0) { setHidden(false); setOpen(true); }
+  }, [forceOpen]);
 
   function acknowledge() {
     try { localStorage.setItem(AI_DISCLAIMER_ACK_KEY, '1'); } catch { /* private mode */ }
@@ -2703,10 +2730,11 @@ function AiDisclaimer({ labels }) {
 
   return (
     <>
+      {!hidden && (
       <div style={{
         display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap',
         background: '#fdf6e7', border: '1px solid #f0e0be', borderRadius: 8,
-        padding: '0.35rem 0.7rem', margin: '1rem 0 0 0', fontSize: '0.78rem',
+        padding: '0.35rem 0.7rem', margin: '0 0 1rem 0', fontSize: '0.78rem',
         color: 'var(--warm-gray)', lineHeight: 1.4,
       }}>
         <span style={{ flex: 1, minWidth: 0 }}>⚠️ {labels.aiDisclaimerShort}</span>
@@ -2715,7 +2743,14 @@ function AiDisclaimer({ labels }) {
           color: 'var(--primary)', fontSize: '0.78rem', fontWeight: 600,
           textDecoration: 'underline', whiteSpace: 'nowrap',
         }}>{labels.aiDisclaimerMore}</button>
+        <button type="button" onClick={() => setHidden(true)}
+          title={labels.aiDisclaimerLess} aria-label={labels.aiDisclaimerLess} style={{
+          background: 'none', border: 'none', padding: '0 0 0 0.2rem', cursor: 'pointer',
+          color: 'var(--warm-gray)', fontSize: '1rem', lineHeight: 1,
+          fontWeight: 700, whiteSpace: 'nowrap',
+        }}>×</button>
       </div>
+      )}
 
       {open && (
         <div onClick={() => acked && setOpen(false)} style={{
@@ -2748,7 +2783,7 @@ function AiDisclaimer({ labels }) {
   );
 }
 
-function Workspace({ labels, activePanel, onPanelChange, onLogout, onGenerated, lastGeneratedScript, currentUser, isRtl }) {
+function Workspace({ labels, activePanel, onPanelChange, onLogout, onGenerated, lastGeneratedScript, currentUser, isRtl, disclaimerTrigger = 0 }) {
   const [sharedAudioUrl, setSharedAudioUrl] = useState(null);
   const [lastTranscript, setLastTranscript] = useState(null);
   const [lastRecordingBlob, setLastRecordingBlob] = useState(null);
@@ -2763,6 +2798,12 @@ function Workspace({ labels, activePanel, onPanelChange, onLogout, onGenerated, 
         </span>
         <button type="button" className="sign-out-btn" onClick={onLogout}>{labels.signOut}</button>
       </div>
+
+      {/* AI disclaimer (ETIB feedback 21 Aug 2026) — back at the top of the
+          workspace, above the modules, where it is read before anything is used.
+          The × hides the line for this session only; it returns on the next
+          visit, and a new account always gets the full text as a modal. */}
+      <AiDisclaimer labels={labels} forceOpen={disclaimerTrigger} />
 
       {/* Keep all panels mounted — state persists when switching tabs */}
       <div style={{ display: activePanel === 'module-a' ? 'block' : 'none' }}>
@@ -2803,11 +2844,6 @@ function Workspace({ labels, activePanel, onPanelChange, onLogout, onGenerated, 
           }} />
         )}
       </div>
-
-      {/* Always-visible AI disclaimer (ETIB feedback 21 Aug 2026).
-          Moved below the modules at the user's request — it stays on every
-          panel, it just no longer pushes the workspace down. */}
-      <AiDisclaimer labels={labels} />
 
     </section>
   );
@@ -2867,7 +2903,7 @@ function SourcesPanel({ labels, language, domain, initialQuery, onSelectLibrary,
       <div className="library-panel">
         <div className="library-header">
           <h2 className="library-title">{labels?.srcPanelTitle || 'Add Source'}</h2>
-          <button className="library-close" onClick={onClose} aria-label="Close">✕</button>
+          <button className="library-close" onClick={onClose} aria-label={labels.closeLabel}>✕</button>
         </div>
         <p className="library-subtitle">{labels?.srcPanelSubtitle}</p>
 
@@ -3282,13 +3318,13 @@ const [showAdvanced, setShowAdvanced] = useState(true);
         {/* ── Language + quick settings row ── */}
         <div className="quick-settings-row">
           <div className="lang-pair">
-            <select name="language" value={form.language} onChange={updateField} className="lang-select" title="Speech language">
+            <select name="language" value={form.language} onChange={updateField} className="lang-select" title={labels.language}>
               <option value="ar">AR</option>
               <option value="fr">FR</option>
               <option value="en">EN</option>
             </select>
             <span className="lang-arrow">{isRtl ? '←' : '→'}</span>
-            <select name="target_language" value={form.target_language} onChange={updateField} className="lang-select" title="Interpretation target">
+            <select name="target_language" value={form.target_language} onChange={updateField} className="lang-select" title={labels.targetLanguage}>
               <option value="ar">AR</option>
               <option value="fr">FR</option>
               <option value="en">EN</option>
@@ -5037,6 +5073,7 @@ function ModuleC({ labels, referenceAudioUrl, sourceScript, targetLanguage, glos
                 />
               ) : (
                 <TranscriptBubble
+                  labels={labels}
                   text={result.full_text}
                   vocalizedText={result.vocalized_text}
                   isArabic={isArabic}

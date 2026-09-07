@@ -133,7 +133,7 @@ main { padding: 1.5rem 0 1.75rem; display: flex; flex-direction: column; gap: 2r
    ══════════════════════════════════ */
 .hero {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: minmax(0, 1fr) 400px;
   gap: 2rem;
   align-items: center;
   align-content: center;
@@ -294,7 +294,8 @@ main { padding: 1.5rem 0 1.75rem; display: flex; flex-direction: column; gap: 2r
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--primary-hover); background: #fff; }
 .field input::placeholder { color: #b5a898; }
 
-.field-row { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; align-items: end; }
+.field-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem; align-items: end; }
+.field-row input { min-width: 0; }
 .show-btn {
   background: none; border: 1.5px solid var(--border);
   border-radius: 8px; padding: 0.65rem 0.8rem;
@@ -491,7 +492,7 @@ main { padding: 1.5rem 0 1.75rem; display: flex; flex-direction: column; gap: 2r
 .quick-select:focus { border-color: var(--primary-hover); }
 
 .advanced-toggle {
-  margin-left: auto;
+  margin-inline-start: auto;
   background: none;
   border: 1.5px solid rgba(26,21,16,0.12);
   border-radius: 8px;
@@ -1072,7 +1073,7 @@ audio { width: 100%; accent-color: var(--primary); }
     gap: 0.3rem;
     order: 3;
   }
-  .lang-picker { order: 2; margin-left: auto; }
+  .lang-picker { order: 2; margin-inline-start: auto; }
   .nav-btn { font-size: 0.73rem; padding: 0.26rem 0.6rem; }
   .header-title-sub { display: none; }
 }
@@ -1080,7 +1081,10 @@ audio { width: 100%; accent-color: var(--primary); }
 /* ── 600px: mobile ── */
 @media (max-width: 600px) {
   .shell { padding: 0 0.75rem; }
-  header { padding: 0.6rem 0.75rem; gap: 0.4rem; }
+  /* header bleeds edge-to-edge via a negative margin that must stay equal
+     to the shell padding, or it overflows the viewport by the difference
+     (silently clipped by body overflow-x:hidden). */
+  header { margin: 0 -0.75rem; padding: 0.6rem 0.75rem; gap: 0.4rem; }
   .header-logos img { height: 32px !important; width: auto !important; }
   .header-title-main { font-size: 0.95rem; }
   nav { gap: 0.25rem; }
@@ -1151,13 +1155,8 @@ body.rtl .topic-attach-btn {
   border-right: 1.5px solid rgba(27,58,107,0.25);
 }
 
-/* ── advanced-toggle: in RTL flex the start is RIGHT,
-      margin-right:auto pushes it to RIGHT (RTL-start = wrong).
-      We want it at the END (LEFT), so keep margin-left:auto   ── */
-body.rtl .advanced-toggle {
-  margin-right: 0;
-  margin-left: auto;
-}
+/* ── advanced-toggle now uses margin-inline-start:auto, which puts it at
+      the row's END in both directions — no RTL override needed ── */
 
 /* ── action row: space-between works the same in both LTR and RTL ── */
 
@@ -1327,6 +1326,7 @@ body.rtl .upload-fallback[open] summary::before { transform: rotate(270deg); }
 
 .library-search-input {
   flex: 1;
+  min-width: 0;
   border: 1.5px solid rgba(26,21,16,0.14);
   border-radius: 9px;
   padding: 0.6rem 0.9rem;
@@ -1518,13 +1518,14 @@ body.rtl .upload-fallback[open] summary::before { transform: rotate(270deg); }
   color: var(--ink);
   font-size: 0.88rem;
   line-height: 1.7;
-  margin: 0.2rem 0 0.2rem 1.4rem;
-  padding-left: 0.9rem;
+  margin: 0.2rem 0;
+  margin-inline-start: 1.4rem;
+  padding-inline-start: 0.9rem;
 }
 .summary-bullet::before {
   content: '';
   position: absolute;
-  left: 0; top: 0.6em;
+  inset-inline-start: 0; top: 0.6em;
   width: 6px; height: 6px;
   border-radius: 50%;
   background: var(--primary);
@@ -1989,7 +1990,7 @@ body.rtl .upload-fallback[open] summary::before { transform: rotate(270deg); }
 .session-chevron {
   font-size: 0.65rem;
   color: var(--warm-gray);
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 .err-chip {
   font-size: 0.7rem;
@@ -2039,7 +2040,7 @@ body.rtl .upload-fallback[open] summary::before { transform: rotate(270deg); }
   border-radius: 50%;
   position: absolute;
   top: 4px;
-  right: 4px;
+  inset-inline-end: 4px;
 }
 
 /* ── Settings modal overlay ──────────────────────────────────────────────── */
