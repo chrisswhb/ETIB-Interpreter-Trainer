@@ -2696,8 +2696,9 @@ function LoginScreen({ labels, onLogin, onSignup, onGuest }) {
 //  qui prévient les usagers des limites et de la nécessité de faire preuve de
 //  vigilance lors de l'utilisation des sorties ?"
 // The one-line warning is ALWAYS visible — it is not dismissible, because a
-// disclaimer a student can hide forever stops being one. Only the detail is
-// collapsible, and it stays open once opened for the session.
+// disclaimer a student can hide stops being one. It carried a × button for a
+// while; that is gone, since dismissing it was the one thing it must not allow.
+// Only the detail is collapsible, behind "Details".
 const AI_DISCLAIMER_ACK_KEY = 'etib_ai_disclaimer_ack_v1';
 
 // ── AI disclaimer ─────────────────────────────────────────────
@@ -2709,17 +2710,13 @@ function AiDisclaimer({ labels, forceOpen = 0 }) {
     try { return localStorage.getItem(AI_DISCLAIMER_ACK_KEY) === '1'; } catch { return false; }
   });
   const [open, setOpen] = useState(false);
-  // Hiding the line is deliberately SESSION-ONLY (not persisted): the ETIB asked
-  // for a warning that is present, so it comes back on the next visit.
-  const [hidden, setHidden] = useState(false);
-
   // First visit: show the full text once, then never again unless asked for.
   useEffect(() => { if (!acked) setOpen(true); }, [acked]);
 
   // A brand-new account must read the disclaimer even if this browser already
   // acknowledged it as a guest — the counter re-fires on every signup.
   useEffect(() => {
-    if (forceOpen > 0) { setHidden(false); setOpen(true); }
+    if (forceOpen > 0) { setOpen(true); }
   }, [forceOpen]);
 
   function acknowledge() {
@@ -2730,7 +2727,6 @@ function AiDisclaimer({ labels, forceOpen = 0 }) {
 
   return (
     <>
-      {!hidden && (
       <div style={{
         display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap',
         background: '#fdf6e7', border: '1px solid #f0e0be', borderRadius: 8,
@@ -2743,14 +2739,7 @@ function AiDisclaimer({ labels, forceOpen = 0 }) {
           color: 'var(--primary)', fontSize: '0.78rem', fontWeight: 600,
           textDecoration: 'underline', whiteSpace: 'nowrap',
         }}>{labels.aiDisclaimerMore}</button>
-        <button type="button" onClick={() => setHidden(true)}
-          title={labels.aiDisclaimerLess} aria-label={labels.aiDisclaimerLess} style={{
-          background: 'none', border: 'none', padding: '0 0 0 0.2rem', cursor: 'pointer',
-          color: 'var(--warm-gray)', fontSize: '1rem', lineHeight: 1,
-          fontWeight: 700, whiteSpace: 'nowrap',
-        }}>×</button>
       </div>
-      )}
 
       {open && (
         <div onClick={() => acked && setOpen(false)} style={{
