@@ -412,6 +412,9 @@ main { padding: 1.5rem 0 1.75rem; display: flex; flex-direction: column; gap: 2r
   background: transparent;
   color: var(--ink);
   min-width: 0;
+  /* One line of text plus the vertical padding. Kept here rather than inline
+     so the phone breakpoints below can grow it — see the note in App.jsx. */
+  min-height: 2.95rem;
 }
 .topic-input::placeholder { color: #b5a898; }
 
@@ -1117,6 +1120,18 @@ audio { width: 100%; accent-color: var(--primary); }
   /* Cards */
   .card { border-radius: 12px; padding: 1rem; }
   main { padding: 1.5rem 0 3rem; gap: 1.2rem; }
+
+  /* Topic box: the placeholder wraps to two lines on a phone, and at the
+     desktop height the second line was clipped mid-word. */
+  .topic-input { min-height: 4.4rem; }
+
+  /* Assistant: never wider than the screen, never taller than it either. */
+  .chat-dock { bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); inset-inline-end: 1rem; }
+  .chat-panel {
+    width: calc(100vw - 2rem);
+    max-width: 340px;
+    height: min(440px, 68vh);
+  }
 }
 
 /* ── 420px: very small phones ── */
@@ -1125,6 +1140,9 @@ audio { width: 100%; accent-color: var(--primary); }
   .nav-btn { font-size: 0.63rem; padding: 0.2rem 0.38rem; }
   .progress-section { grid-template-columns: 1fr; }
   .algo-grid { grid-template-columns: 1fr; }
+  /* Narrower still: the longest placeholder (French, 63 characters) reaches a
+     third line around here. */
+  .topic-input { min-height: 5.0rem; }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -2041,6 +2059,21 @@ body.rtl .upload-fallback[open] summary::before { transform: rotate(270deg); }
   position: absolute;
   top: 4px;
   inset-inline-end: 4px;
+}
+
+/* ── Floating assistant ──────────────────────────────────────────────────── */
+.chat-dock {
+  position: fixed;
+  /* safe-area keeps the launcher clear of the iOS home indicator and of the
+     Android browser toolbar, which otherwise sits on top of it. */
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  inset-inline-end: 1.5rem;
+  z-index: 1000;
+}
+
+.chat-panel {
+  width: 340px;
+  height: 440px;
 }
 
 /* ── Settings modal overlay ──────────────────────────────────────────────── */

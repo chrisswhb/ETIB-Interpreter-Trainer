@@ -2475,10 +2475,13 @@ function ChatWidget({ labels }) {
   }
 
   return (
-    <div style={{ position: 'fixed', bottom: '1.5rem', insetInlineEnd: '1.5rem', zIndex: 1000 }}>
+    <div className="chat-dock">
       {open && (
-        <div style={{
-          width: 340, height: 440, background: 'var(--surface, #fff)',
+        /* Size lives in main.css (.chat-panel): the width was a hard-coded
+           340px, which is wider than the viewport of a 360px phone once the
+           dock inset is subtracted, so the panel ran off the screen edge. */
+        <div className="chat-panel" style={{
+          background: 'var(--surface, #fff)',
           border: '1px solid var(--border, #ddd)', borderRadius: 16,
           boxShadow: '0 8px 32px rgba(0,0,0,0.18)', display: 'flex',
           flexDirection: 'column', marginBottom: '0.75rem', overflow: 'hidden'
@@ -3277,7 +3280,10 @@ const [showAdvanced, setShowAdvanced] = useState(true);
             placeholder={labels.topicPlaceholder || 'Enter a topic or paste text to generate a speech…'}
             onChange={updateField}
             disabled={isLoading}
-            style={{ resize: 'vertical', overflow: 'auto', minHeight: '2.6rem' }}
+            /* Height lives in main.css (.topic-input), NOT inline: an inline
+               min-height beats every media query, so on a phone the wrapped
+               placeholder was clipped mid-word with no way to override it. */
+            style={{ resize: 'vertical', overflow: 'auto' }}
           />
         </div>
         {topicIsLongText && (
