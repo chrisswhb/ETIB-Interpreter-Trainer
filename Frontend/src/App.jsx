@@ -2584,7 +2584,10 @@ function Header({ isAuthenticated, isGuest, activePanel, labels, onPanelChange, 
       )}
       <label className="lang-picker">
         <span>{labels.uiLanguage}</span>
-        <select value={uiLang} onChange={event => onLanguageChange(event.target.value)}>
+        {/* aria-label, because the caption above is hidden on phones to keep
+            the picker on the title row — see .lang-picker in main.css. */}
+        <select aria-label={labels.uiLanguage} value={uiLang}
+                onChange={event => onLanguageChange(event.target.value)}>
           <option value="en">English</option>
           <option value="fr">Français</option>
           <option value="ar">العربية</option>
@@ -2737,7 +2740,7 @@ function AiDisclaimer({ labels, forceOpen = 0 }) {
         color: 'var(--warm-gray)', lineHeight: 1.4,
       }}>
         <span style={{ flex: 1, minWidth: 0 }}>⚠️ {labels.aiDisclaimerShort}</span>
-        <button type="button" onClick={() => setOpen(true)} style={{
+        <button type="button" className="disclaimer-details-btn" onClick={() => setOpen(true)} style={{
           background: 'none', border: 'none', padding: 0, cursor: 'pointer',
           color: 'var(--primary)', fontSize: '0.78rem', fontWeight: 600,
           textDecoration: 'underline', whiteSpace: 'nowrap',

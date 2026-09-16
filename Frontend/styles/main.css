@@ -1071,8 +1071,14 @@ audio { width: 100%; accent-color: var(--primary); }
   .nav-btn { padding: 0.3rem 0.7rem; font-size: 0.76rem; }
 }
 
-/* ── 780px: header starts to crowd — wrap nav below logo ── */
-@media (max-width: 780px) {
+/* ── 960px: wrap the nav below the logo ──
+   The header's three blocks need 930px on one row: logos 234 + nav 484 +
+   language picker 148, plus gaps and padding. This used to wrap only below
+   780px, so everything from 781px to 929px overflowed the row -- and a touch
+   browser responds to that by zooming the WHOLE PAGE out to fit, which is
+   what an iPad Air at 820px was doing. Measured, not guessed: see the
+   breakpoint sweep in the commit message. */
+@media (max-width: 960px) {
   header {
     flex-wrap: wrap;
     padding: 0.7rem 1.5rem;
@@ -1086,6 +1092,10 @@ audio { width: 100%; accent-color: var(--primary); }
     order: 3;
   }
   .lang-picker { order: 2; margin-inline-start: auto; }
+}
+
+/* ── 780px ── */
+@media (max-width: 780px) {
   .nav-btn { font-size: 0.73rem; padding: 0.26rem 0.6rem; }
   .header-title-sub { display: none; }
 }
@@ -1099,6 +1109,32 @@ audio { width: 100%; accent-color: var(--primary); }
   header { margin: 0 -0.75rem; padding: 0.6rem 0.75rem; gap: 0.4rem; }
   .header-logos img { height: 32px !important; width: auto !important; }
   .header-title-main { font-size: 0.95rem; }
+
+  /* The "Interface language" caption is what pushed this picker onto a row of
+     its own -- caption + select is ~148px, which will not fit beside the logo
+     block on a phone, and margin-inline-start:auto then parked it at the far
+     right with a wide empty gap to its left. The select alone is ~83px. The
+     caption is dropped visually only; the <select> carries an aria-label so
+     screen readers still announce it, and the options (English / Francais /
+     العربية) name the control on sight. */
+  .lang-picker { margin-inline-start: auto; gap: 0; flex: 0 0 auto; }
+  .lang-picker > span { display: none; }
+  .lang-picker select { padding: 0.28rem 0.45rem; font-size: 0.75rem; }
+
+  /* Even compact, the picker missed the title row by 3px at 390px: the logo
+     block measures 280px (image 91 + title 175 on ONE line) against 366px of
+     usable width. Letting that block shrink wraps the title to a second line
+     instead, which keeps the picker on row 1 and removes an entire 34px row
+     from the header -- a wrapped title is cheaper than a whole extra row, and
+     much cheaper than shrinking the app name to fit.
+
+     The basis must be 0, not auto: flex line-breaking is decided from each
+     item's BASE size before any shrinking happens, so with basis:auto the
+     logo block still measured its full width, the row broke, and only then
+     did it shrink -- stranding the picker on its own line anyway. */
+  .header-logos { flex: 1 1 0; min-width: 0; gap: 8px; }
+  .header-title-main { font-size: 0.9rem; line-height: 1.18; }
+
   nav { gap: 0.25rem; }
   .nav-btn { font-size: 0.68rem; padding: 0.22rem 0.48rem; border-radius: 14px; }
   .hero-text h1 { font-size: 2rem; }
@@ -1149,6 +1185,51 @@ audio { width: 100%; accent-color: var(--primary); }
 /* ── 360px: the longest placeholder (French, 63 chars) reaches a third line ── */
 @media (max-width: 360px) {
   .topic-input { min-height: 5.0rem; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   TOUCH TAP TARGETS
+   Keyed on the input device, not the viewport: a 1024px iPad is touch and a
+   900px laptop window is not, so a width query would size the wrong one.
+   Measured on a 390px phone, the nav buttons were 21px tall, the language
+   selects 19px and a checkbox 13px. Apple asks for 44px and Material for
+   48dp; this form UI is dense enough that a flat 44 would push the header
+   past a third of the screen, so these go to a still-comfortable ~34px and
+   the checkbox — the hardest thing here to hit — gets more.
+   Desktop is untouched: the whole block is inside the coarse-pointer query.
+   ══════════════════════════════════════════════════════════ */
+@media (hover: none) and (pointer: coarse) {
+  .nav-btn,
+  .lang-picker select,
+  .lang-select,
+  .quick-select,
+  .advanced-toggle,
+  .sign-out-btn {
+    min-height: 34px;
+  }
+  /* Selects centre their own text; buttons need telling. */
+  .nav-btn, .advanced-toggle, .sign-out-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  /* The lang-pair keeps its own padding, so its selects can stay a touch
+     shorter without the control itself becoming small. */
+  .lang-select { min-height: 30px; }
+
+  input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* "Details" in the AI disclaimer was a 14px-tall text link. Only min-height
+     and display are set: the button's padding is an inline style, which a
+     stylesheet cannot override without !important. */
+  .disclaimer-details-btn {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
