@@ -35,8 +35,8 @@ from modules.module_library import (
     DOMAIN_QUERIES,
     _clean_extracted_text,
     _download_and_extract,
-    _search_un_api,
 )
+from utils.un_documents import fetch_symbol_text, search_catalog
 
 module_a_bp = Blueprint('module_a', __name__)
 
@@ -2085,54 +2085,76 @@ def _build_un_search_queries(params: dict) -> list[str]:
 
 def find_un_grounding_source(params: dict) -> dict | None:
     """
-    Search the UN Digital Library for a grounding document.
-    Tries English → French → Spanish (most text-extractable formats).
-    Each PDF download uses a short 20s timeout so generation doesn't hang long.
+    Find a real UN document to ground the speech in.
+
+    Ranks the verified symbol catalog (utils/un_documents.py) against the topic
+    and downloads the best match from documents.un.org. Returns None only if
+    every candidate fails to download, in which case the caller falls back to
+    Wikipedia.
     """
     import logging
     log = logging.getLogger(__name__)
 
-    queries = _build_un_search_queries(params)
+    topic = str(params.get('topic', '')).strip()
+    domain = params.get('domain', '')
+    domain_keywords = DOMAIN_QUERIES.get(domain, '')
 
-    for query in queries:
-        for un_lang in ('eng', 'fre', 'spa'):
+    # The UN Digital Library search this used to call is behind an AWS WAF JS
+    # challenge and now returns nothing at all, which silently sent every
+    # generation to the Wikipedia fallback. Ranking a catalog of verified
+    # symbols and fetching them from documents.un.org replaces it; see
+    # utils/un_documents.py for the full story.
+    # English first: the verbatim records are most reliably extractable in
+    # English, and the speech is written in the target language regardless of
+    # the grounding document's language.
+    for un_lang in ('eng', 'fre'):
+        try:
+            results = search_catalog(
+                query=topic, domain=domain, un_lang=un_lang,
+                limit=8, domain_keywords=domain_keywords,
+            )
+        except Exception as exc:
+            log.warning('[Grounding] UN catalog search failed (%s): %s', un_lang, exc)
+            results = []
+
+        # The catalog is already ranked, but ties are shuffled inside
+        # search_catalog so repeated generations on one topic bring fresh
+        # material (professor feedback).
+        candidates = [r for r in results if r.get('pdf_url')]
+        for result in candidates[:5]:
+            pdf_url = result.get('pdf_url')
             try:
-                results = _search_un_api(query, un_lang, 8)
+                # Cached after the first fetch: these are 50-80 page, ~1 MB
+                # records and a cold download plus extraction measured 27-90s,
+                # which is far too long to sit in front of the student. The
+                # timeout is also longer than the old 20s, because a timeout
+                # here is exactly what used to send them to Wikipedia.
+                text = _clean_extracted_text(fetch_symbol_text(
+                    result['un_id'], un_lang, _download_and_extract, timeout=45,
+                ))
             except Exception as exc:
-                log.debug('[Grounding] UN search error (%s, %s): %s', query, un_lang, exc)
-                results = []
+                log.warning('[Grounding] UN PDF failed (%s): %s', pdf_url, exc)
+                continue
 
-            # Shuffle the candidates so the same topic + settings does not
-            # always ground in the exact same document (professor feedback:
-            # repeated generations should bring fresh material).
-            candidates = [r for r in results if r.get('pdf_url')]
-            random.shuffle(candidates)
-            for result in candidates[:5]:
-                pdf_url = result.get('pdf_url')
-                try:
-                    # Short timeout so one slow PDF doesn't block generation
-                    text = _clean_extracted_text(_download_and_extract(pdf_url, timeout=20))
-                except Exception as exc:
-                    log.debug('[Grounding] PDF failed (%s): %s', pdf_url, exc)
-                    continue
+            words = len(text.split())
+            if words < 40:
+                log.warning('[Grounding] Too short (%d words): %s', words, pdf_url)
+                continue
 
-                words = len(text.split())
-                if words < 40:
-                    log.debug('[Grounding] Too short (%d words): %s', words, pdf_url)
-                    continue
+            log.info('[Grounding] Found source: "%s" (%s, %d words)',
+                     result.get('title', ''), result.get('un_id', ''), words)
+            return {
+                'text':    text,
+                'title':   result.get('title', ''),
+                'un_id':   result.get('un_id', ''),
+                'web_url': result.get('web_url', ''),
+                'pdf_url': pdf_url,
+                'date':    result.get('date', ''),
+                'query':   topic,
+            }
 
-                log.info('[Grounding] Found source: "%s" (%d words)', result.get('title', ''), words)
-                return {
-                    'text':    text,
-                    'title':   result.get('title', ''),
-                    'un_id':   result.get('un_id', ''),
-                    'web_url': result.get('web_url', ''),
-                    'pdf_url': pdf_url,
-                    'date':    result.get('date', ''),
-                    'query':   query,
-                }
-
-    log.info('[Grounding] No usable document found for queries: %s', queries)
+    log.warning('[Grounding] No usable UN document for topic=%r domain=%r '
+                '- falling back to Wikipedia', topic, domain)
     return None
 
 

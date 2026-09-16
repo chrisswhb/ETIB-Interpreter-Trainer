@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 
 from services.llm_service import generate_text
+from utils.un_documents import search_catalog
 
 # curl_cffi: impersonates a real browser TLS fingerprint — bypasses AWS WAF
 try:
@@ -212,12 +213,16 @@ def search_un_library():
     un_lang = LANG_MAP.get(language, 'ara')
     full_query = ' '.join(query_parts)
 
-    # Try the UN Digital Library JSON API
-    results = _search_un_api(full_query, un_lang, limit)
-
-    if not results:
-        # Retry with English interface if language-specific search returned nothing
-        results = _search_un_api(full_query, 'eng', limit)
+    # Rank the verified symbol catalog and serve the PDFs from
+    # documents.un.org. The old _search_un_api() path against
+    # digitallibrary.un.org is kept below but no longer called: that host now
+    # answers every request with an AWS WAF JavaScript challenge (HTTP 202,
+    # x-amzn-waf-action: challenge), so it returned nothing but cost two 30s
+    # timeouts on the way. See utils/un_documents.py.
+    results = search_catalog(
+        query=q, domain=domain, un_lang=un_lang, limit=limit,
+        domain_keywords=DOMAIN_QUERIES.get(domain, ''),
+    )
 
     return jsonify({
         'query':    full_query,

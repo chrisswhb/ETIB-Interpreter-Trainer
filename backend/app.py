@@ -131,6 +131,31 @@ def get_config():
         'remote_aya_configured': bool(REMOTE_AYA_URL and 'PASTE_' not in REMOTE_AYA_URL)
     })
 
+# ── Warm the UN document cache in the background ─────────────────────────────
+# The catalogued verbatim records are ~1 MB PDFs; a cold fetch plus extraction
+# takes 17-90s, which the first student to press "generate" would otherwise
+# wait through. Warming them on a daemon thread costs nothing at boot and is
+# entirely optional -- if it fails, generation just pays the cold cost.
+# Set UN_PREWARM=0 to skip it (useful when developing offline).
+def _start_un_cache_prewarm():
+    if os.getenv('UN_PREWARM', '1').lower() in ('0', 'false', 'no'):
+        return
+    try:
+        import threading
+        from utils.un_documents import prewarm_cache
+        from modules.module_library import _download_and_extract
+
+        threading.Thread(
+            target=prewarm_cache, args=(_download_and_extract,),
+            name='un-cache-prewarm', daemon=True,
+        ).start()
+    except Exception as exc:
+        print(f'[UN cache] prewarm could not start: {exc}')
+
+
+_start_un_cache_prewarm()
+
+
 @app.errorhandler(413)
 def too_large(_):
     return jsonify({'error': 'File too large. Maximum upload size is 120 MB. '
