@@ -278,7 +278,16 @@ main { padding: 1.5rem 0 1.75rem; display: flex; flex-direction: column; gap: 2r
   margin-bottom: 1.6rem;
 }
 
-.field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
+/* min-width:0 is load-bearing, not tidying. A grid/flex item defaults to
+   min-width:auto, i.e. it refuses to shrink below its content's min-content
+   width. A <select> is laid out at the width of its LONGEST <option>, and
+   "Short — 120–180 words (≈1–1.5 min)" is 371px. So on a phone these fields
+   would not shrink, the form grid pushed the document to 417px against a
+   390px viewport, and the browser zoomed the whole workspace out to fit --
+   which is why every control looked shrunken on mobile. max-width keeps the
+   control inside the field once the field itself can shrink. */
+.field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; min-width: 0; }
+.field input, .field select, .field textarea { min-width: 0; max-width: 100%; }
 .field label { font-size: 0.78rem; font-weight: 500; color: var(--warm-gray); letter-spacing: 0.03em; }
 .field input, .field select, .field textarea {
   border: 1.5px solid rgba(26,21,16,0.14);
@@ -1102,10 +1111,13 @@ audio { width: 100%; accent-color: var(--primary); }
   .action-row { flex-wrap: wrap; }
   .action-row .btn-primary { flex: 1; min-width: 140px; justify-content: center; text-align: center; }
 
-  /* Quick settings row: all controls full width */
+  /* Quick settings row. The row already wraps, so give the difficulty select
+     a floor wide enough for its longest label instead of letting it shrink:
+     with min-width:0 it was squeezed onto one line and rendered as
+     "Intermediat". Below the floor it now wraps to its own full-width line. */
   .quick-settings-row { gap: 0.4rem; }
-  .lang-pair { flex: 1; min-width: 0; }
-  .quick-select { flex: 1; min-width: 0; }
+  .lang-pair { flex: 0 1 auto; }
+  .quick-select { flex: 1 1 8.5rem; min-width: 8.5rem; }
 
   /* Library panel: edge-to-edge */
   .library-overlay { padding: 0.5rem; }
@@ -1124,14 +1136,6 @@ audio { width: 100%; accent-color: var(--primary); }
   /* Topic box: the placeholder wraps to two lines on a phone, and at the
      desktop height the second line was clipped mid-word. */
   .topic-input { min-height: 4.4rem; }
-
-  /* Assistant: never wider than the screen, never taller than it either. */
-  .chat-dock { bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); inset-inline-end: 1rem; }
-  .chat-panel {
-    width: calc(100vw - 2rem);
-    max-width: 340px;
-    height: min(440px, 68vh);
-  }
 }
 
 /* ── 420px: very small phones ── */
@@ -1140,8 +1144,10 @@ audio { width: 100%; accent-color: var(--primary); }
   .nav-btn { font-size: 0.63rem; padding: 0.2rem 0.38rem; }
   .progress-section { grid-template-columns: 1fr; }
   .algo-grid { grid-template-columns: 1fr; }
-  /* Narrower still: the longest placeholder (French, 63 characters) reaches a
-     third line around here. */
+}
+
+/* ── 360px: the longest placeholder (French, 63 chars) reaches a third line ── */
+@media (max-width: 360px) {
   .topic-input { min-height: 5.0rem; }
 }
 
@@ -2074,6 +2080,23 @@ body.rtl .upload-fallback[open] summary::before { transform: rotate(270deg); }
 .chat-panel {
   width: 340px;
   height: 440px;
+}
+
+/* These overrides live HERE, immediately after the base rule, and not up in
+   the 600px block with the rest of the mobile CSS. Same specificity means the
+   later rule wins, and the base rule above is further down the file than that
+   block -- so putting them there silently did nothing and the panel still
+   rendered 340px wide, hanging 44px off the edge of a 320px screen. */
+@media (max-width: 600px) {
+  .chat-dock {
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    inset-inline-end: 1rem;
+  }
+  .chat-panel {
+    width: calc(100vw - 2rem);
+    max-width: 340px;
+    height: min(440px, 68vh);
+  }
 }
 
 /* ── Settings modal overlay ──────────────────────────────────────────────── */
