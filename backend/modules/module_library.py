@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 
 from services.llm_service import generate_text
-from utils.un_documents import search_catalog
+from utils.un_documents import UN_CATALOG, fetch_symbol_text, search_catalog
 
 # curl_cffi: impersonates a real browser TLS fingerprint — bypasses AWS WAF
 try:
@@ -34,6 +34,9 @@ except ImportError:
     print('[Library] curl_cffi not available — WAF bypass disabled')
 
 module_library_bp = Blueprint('module_library', __name__)
+
+# Symbols the catalog knows, so /fetch can send those through the shared cache.
+_CATALOG_SYMBOLS = {entry['symbol'] for entry in UN_CATALOG}
 
 # ── UN Digital Library endpoints ─────────────────────────────────────────────
 UN_BASE          = 'https://digitallibrary.un.org'
@@ -643,7 +646,15 @@ def fetch_un_document():
 
     # Download and extract — fall back to LLM text generation if PDF is unreachable
     try:
-        text = _download_and_extract(pdf_url)
+        if un_id in _CATALOG_SYMBOLS:
+            # Catalogued verbatim record: go through the shared cache, or the
+            # student waits out a 17-90s download of a ~1 MB, 50-80 page PDF
+            # that another student has very likely already fetched.
+            text = fetch_symbol_text(
+                un_id, LANG_MAP.get(language, 'eng'), _download_and_extract,
+            )
+        else:
+            text = _download_and_extract(pdf_url)
     except Exception as exc:
         print(f'[Library] PDF download failed for {un_id}: {exc} — generating via LLM')
         text = _generate_demo_document_text(
