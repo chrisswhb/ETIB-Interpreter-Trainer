@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   generateSpeech,
   generateSpeechFromDocument,
@@ -1607,18 +1607,73 @@ const VOICE_OPTIONS = {
 // We persist every equivalent/definition the user corrects, keyed by the term,
 // in localStorage. On each new generation these remembered corrections are
 // re-applied to matching terms — so the same term is never wrong twice for a
-// given user/browser. (Per-browser today; can be synced per-account later.)
-const GLOSSARY_MEMORY_KEY = 'etib_glossary_memory_v1';
+// given ACCOUNT.
+//
+// ACCOUNT-SCOPED (21 Sep 2026). The generated glossary itself is identical for
+// everyone — same terms, same UNBIS/IATE grounding, all done server-side. Only
+// the correction layer on top is personal, and it belongs to the account that
+// typed it:
+//   • the storage key is namespaced per user id, so two accounts sharing a
+//     browser never see each other's corrections;
+//   • GUESTS get no memory key at all (null) — nothing is read, nothing is
+//     written. A guest can still fix a cell on screen for the speech they are
+//     working on (it feeds Module D's terminology check), but the fix is never
+//     remembered and never reappears in a later glossary.
+// The server (backend/modules/module_b.py) is the source of truth and already
+// refuses guests; this mirrors that rule in the browser, where the old single
+// shared key was leaking corrections between whoever used the same machine.
+const GLOSSARY_MEMORY_PREFIX = 'etib_glossary_memory_v2';
+// The pre-namespacing key: one bucket every guest and account wrote into.
+const GLOSSARY_MEMORY_LEGACY_KEY = 'etib_glossary_memory_v1';
 const GLOSSARY_MEMORY_FIELDS = ['arabic', 'french', 'english', 'definition'];
+
+// Tiny subscription so the "corrections remembered" hint re-renders whenever
+// the memory changes — on edit, on login (server merge), on logout, on forget.
+const glossaryMemoryListeners = new Set();
+function subscribeGlossaryMemory(listener) {
+  glossaryMemoryListeners.add(listener);
+  return () => glossaryMemoryListeners.delete(listener);
+}
+function notifyGlossaryMemoryChanged() {
+  for (const listener of glossaryMemoryListeners) listener();
+}
+
+// Which account's correction memory is live. null => guest or logged out, and
+// then every read returns {} and every write is a no-op. It STARTS null so the
+// app fails closed: before we know who is signed in, nothing is remembered.
+let activeGlossaryMemoryKey = null;
+
+// Point the memory at an account — or at nothing, for a guest.
+function setActiveGlossaryMemoryUser(userId) {
+  const next = (userId && userId !== 'guest') ? `${GLOSSARY_MEMORY_PREFIX}:${userId}` : null;
+  if (next === activeGlossaryMemoryKey) return;
+  activeGlossaryMemoryKey = next;
+  notifyGlossaryMemoryChanged();
+}
+
+// Drop the old shared key. Its contents are deliberately NOT migrated: we
+// cannot tell which account (or guest) typed any of it.
+function purgeLegacyGlossaryMemory() {
+  try { localStorage.removeItem(GLOSSARY_MEMORY_LEGACY_KEY); } catch { /* ignore */ }
+}
 
 function normalizeGlossaryTerm(term) {
   return String(term || '').trim().toLowerCase();
 }
 
 function loadGlossaryMemory() {
+  if (!activeGlossaryMemoryKey) return {};   // guest: no memory to read
   try {
-    return JSON.parse(localStorage.getItem(GLOSSARY_MEMORY_KEY) || '{}') || {};
+    return JSON.parse(localStorage.getItem(activeGlossaryMemoryKey) || '{}') || {};
   } catch { return {}; }
+}
+
+function saveGlossaryMemory(memory) {
+  if (!activeGlossaryMemoryKey) return;      // guest: nothing is ever written
+  try {
+    localStorage.setItem(activeGlossaryMemoryKey, JSON.stringify(memory));
+    notifyGlossaryMemoryChanged();
+  } catch { /* storage full / disabled — corrections just won't persist */ }
 }
 
 // Save one corrected field for a term, together with the context it was
@@ -1627,26 +1682,27 @@ function loadGlossaryMemory() {
 // Empty values are ignored — a cleared cell is not a correction and must never
 // resurrect later.
 function rememberGlossaryCorrection(term, field, value, context = {}) {
+  // Guest: the edit stays on screen for the speech in progress and is never
+  // remembered. Only an account owns a correction.
+  if (!activeGlossaryMemoryKey) return;
   const key = normalizeGlossaryTerm(term);
   if (!key || !GLOSSARY_MEMORY_FIELDS.includes(field)) return;
   const val = String(value ?? '').trim();
   if (!val) return;
-  try {
-    const memory = loadGlossaryMemory();
-    memory[key] = {
-      ...(memory[key] || {}),
-      [field]: val,
-      term: String(term).trim(),
-      // Context of the correction. Kept per term (not per field) because the
-      // student corrects a term while working on one speech, in one pair.
-      source_language: context.source_language || memory[key]?.source_language || '',
-      target_language: context.target_language || memory[key]?.target_language || '',
-      domain:          context.domain          || memory[key]?.domain          || '',
-      manually_edited: true,
-      updated_at: new Date().toISOString(),
-    };
-    localStorage.setItem(GLOSSARY_MEMORY_KEY, JSON.stringify(memory));
-  } catch { /* storage full / disabled — corrections just won't persist */ }
+  const memory = loadGlossaryMemory();
+  memory[key] = {
+    ...(memory[key] || {}),
+    [field]: val,
+    term: String(term).trim(),
+    // Context of the correction. Kept per term (not per field) because the
+    // student corrects a term while working on one speech, in one pair.
+    source_language: context.source_language || memory[key]?.source_language || '',
+    target_language: context.target_language || memory[key]?.target_language || '',
+    domain:          context.domain          || memory[key]?.domain          || '',
+    manually_edited: true,
+    updated_at: new Date().toISOString(),
+  };
+  saveGlossaryMemory(memory);
 }
 
 // Return how many remembered corrections exist (for the UI hint).
@@ -1707,27 +1763,30 @@ function applyGlossaryMemory(script) {
 // local memory map, so applyGlossaryMemory (which reads localStorage) picks
 // them up. Called on login so a user's terms follow their account/device.
 function mergeServerGlossaryCorrections(corrections) {
+  if (!activeGlossaryMemoryKey) return;   // no account active: nothing to merge into
   if (!Array.isArray(corrections) || !corrections.length) return;
-  try {
-    const memory = loadGlossaryMemory();
-    for (const c of corrections) {
-      const key = normalizeGlossaryTerm(c?.term);
-      if (!key) continue;
-      const patch = { term: c.term, manually_edited: true };
-      for (const f of GLOSSARY_MEMORY_FIELDS) if (c[f]) patch[f] = c[f];
-      for (const f of ['source_language', 'target_language', 'domain', 'updated_at']) {
-        if (c[f]) patch[f] = c[f];
-      }
-      memory[key] = { ...(memory[key] || {}), ...patch };
+  const memory = loadGlossaryMemory();
+  for (const c of corrections) {
+    const key = normalizeGlossaryTerm(c?.term);
+    if (!key) continue;
+    const patch = { term: c.term, manually_edited: true };
+    for (const f of GLOSSARY_MEMORY_FIELDS) if (c[f]) patch[f] = c[f];
+    for (const f of ['source_language', 'target_language', 'domain', 'updated_at']) {
+      if (c[f]) patch[f] = c[f];
     }
-    localStorage.setItem(GLOSSARY_MEMORY_KEY, JSON.stringify(memory));
-  } catch { /* storage disabled — skip */ }
+    memory[key] = { ...(memory[key] || {}), ...patch };
+  }
+  saveGlossaryMemory(memory);
 }
 
-// Clear the local memory (on logout) so the next user on this browser does not
-// inherit the previous account's remembered corrections.
+// Wipe the ACTIVE account's local copy — on logout, and behind the "forget
+// saved corrections" button. The server keeps the account's corrections, so
+// this is a local clear: it is re-fetched on that account's next login, and a
+// shared machine holds nothing in between. No-op for a guest (no key).
 function clearLocalGlossaryMemory() {
-  try { localStorage.removeItem(GLOSSARY_MEMORY_KEY); } catch { /* ignore */ }
+  if (!activeGlossaryMemoryKey) return;
+  try { localStorage.removeItem(activeGlossaryMemoryKey); } catch { /* ignore */ }
+  notifyGlossaryMemoryChanged();
 }
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
@@ -2272,6 +2331,10 @@ export default function App() {
   // speech from before this change).
   useEffect(() => { try { localStorage.removeItem('etib_session_snapshot_v1'); } catch { /* ignore */ } }, []);
 
+  // Same for the pre-namespacing glossary memory: one shared bucket that every
+  // guest and every account on this browser used to write into.
+  useEffect(() => { purgeLegacyGlossaryMemory(); }, []);
+
   // Restore this account's last snapshot when they log in (never for guests).
   useEffect(() => {
     if (!sessionKey) return;
@@ -2320,6 +2383,10 @@ export default function App() {
   // are auto-applied to future generated glossaries (Lina 7 Aug: per-user
   // terminology memory tied to the profile, across sessions/devices).
   useEffect(() => {
+    // Point the correction memory at this account FIRST. For a guest this sets
+    // it to null, which is what stops a guest reading or writing any
+    // correction at all. Only then pull the account's saved corrections down.
+    setActiveGlossaryMemoryUser(currentUser?.id);
     if (!currentUser || currentUser.id === 'guest') return;
     let cancelled = false;
     getGlossaryCorrections()
@@ -2330,6 +2397,9 @@ export default function App() {
 
   function handleGuest() {
     saveAuthToken(null);
+    // Detach the correction memory before any render: a guest must not inherit
+    // the corrections of whoever used this browser last.
+    setActiveGlossaryMemoryUser(null);
     setCurrentUserId('guest');
     setCurrentUser({ name: 'Guest', role: 'student', id: 'guest' });
     setIsAuthenticated(true);
@@ -2378,6 +2448,11 @@ export default function App() {
   }
 
   async function handleLogout() {
+    // Clear this account's local corrections BEFORE the user state resets, so
+    // clearLocalGlossaryMemory still knows whose key to remove. The server
+    // keeps them; they are re-fetched on this account's next login.
+    clearLocalGlossaryMemory();
+    setActiveGlossaryMemoryUser(null);
     await logoutUser().catch(() => {});
     saveAuthToken(null);
     setCurrentUserId(null);
@@ -2386,10 +2461,6 @@ export default function App() {
     setActivePanel('module-a');
     setLastGeneratedScript(null);
     setSessionRestored(false);
-    // Clear this browser's glossary memory so the next user does not inherit
-    // the previous account's remembered corrections (server stays the source
-    // of truth and is re-fetched on the next login).
-    clearLocalGlossaryMemory();
     // Keep the account's snapshot on disk so it can be restored on next login;
     // it is namespaced per user, so it never leaks to a guest or another account.
   }
@@ -3995,8 +4066,10 @@ function ModuleB({ labels, lastGeneratedScript, onAudioGenerated, onScriptUpdate
   const [editingGlossary, setEditingGlossary] = useState(false);
   const [glossaryUploading, setGlossaryUploading] = useState(false);
   // Count of remembered glossary corrections (Lina 6 Aug) — drives the hint and
-  // the "forget" button. Refreshed after each edit so the count stays live.
-  const [glossaryMemoryCount, setGlossaryMemoryCount] = useState(() => glossaryMemorySize());
+  // the "forget" button. Read straight from the memory so it follows edits,
+  // login (server merge) and logout — and reads 0 for a guest, who has none,
+  // which is what keeps the whole hint hidden in guest mode.
+  const glossaryMemoryCount = useSyncExternalStore(subscribeGlossaryMemory, glossaryMemorySize);
   const [materialsStatus, setMaterialsStatus] = useState('idle');
   const glossaryFileRef = useRef(null);
 
@@ -4101,7 +4174,6 @@ function ModuleB({ labels, lastGeneratedScript, onAudioGenerated, onScriptUpdate
         manually_edited: true,
       }).catch(() => {});
     }
-    setGlossaryMemoryCount(glossaryMemorySize());
     // Propagate upward so Module D evaluates terminology against the
     // student-corrected glossary (cahier des charges request).
     onScriptUpdate?.({ ...lastGeneratedScript, glossary: updated });
@@ -4265,10 +4337,8 @@ function ModuleB({ labels, lastGeneratedScript, onAudioGenerated, onScriptUpdate
             <p style={{ fontSize: '0.8rem', color: 'var(--warm-gray)', marginBottom: '0.75rem',
                         display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
               <span>🧠 {glossaryMemoryCount} {labels.glossaryMemoryNote}</span>
-              <button className="btn-secondary btn-sm" onClick={() => {
-                try { localStorage.removeItem(GLOSSARY_MEMORY_KEY); } catch { /* ignore */ }
-                setGlossaryMemoryCount(0);
-              }}>{labels.glossaryMemoryClear}</button>
+              <button className="btn-secondary btn-sm"
+                      onClick={clearLocalGlossaryMemory}>{labels.glossaryMemoryClear}</button>
             </p>
           )}
           <div className="table-responsive">

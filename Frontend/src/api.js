@@ -172,14 +172,14 @@ export async function downloadGlossary(params) {
 // corrected terms are stored server-side and follow their account.
 export async function getGlossaryCorrections() {
   const token = getAuthToken();
-  if (!token) return { corrections: [] };   // guests: local-only, no server call
+  if (!token) return { corrections: [] };   // guests have no correction memory at all
   const res = await safeFetch(`${BASE}/module-b/glossary/corrections?auth_token=${encodeURIComponent(token)}`);
   return parseJsonResponse(res);
 }
 
 export async function saveGlossaryCorrection(correction) {
   const token = getAuthToken();
-  if (!token) return { saved: 0 };          // guests: nothing to persist server-side
+  if (!token) return { saved: 0 };          // guests: a fix stays on screen, it is never saved
   const res = await safeFetch(`${BASE}/module-b/glossary/corrections`, {
     method: 'POST',
     headers: JSON_HEADERS,
