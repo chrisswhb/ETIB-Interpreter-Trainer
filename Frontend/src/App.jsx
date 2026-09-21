@@ -5504,7 +5504,14 @@ function ModuleD({ labels, lastTranscript, lastGeneratedScript, lastRecordingBlo
                 <p className="report-label">{labels.overallScore}</p>
                 <ScoreBar score={report.overall_score || 0} labels={labels} />
               </div>
-              {report.fluency_score !== undefined && (
+              {/* Fluency is NOT shown here any more (ETIB feedback, 21 Sep
+                  2026: it was appearing twice). It has its own "Audio-based
+                  fluency" card further down, where the score sits next to the
+                  summary, the explanation and the preparation time — i.e. with
+                  the context that makes it readable. The fallback below only
+                  fires for a report that carries no audio fluency block at all,
+                  so the score can never vanish from the page entirely. */}
+              {!fluency && report.fluency_score !== undefined && (
                 <div>
                   <p className="report-label">{labels.fluencyScore}</p>
                   <ScoreBar score={report.fluency_score || 0} labels={labels} />
